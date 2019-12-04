@@ -43,8 +43,8 @@ func main() {
 	// with the cdc
 
 	rootCmd := &cobra.Command{
-		Use:   "strcli",
-		Short: "Command line interface for interacting with strd",
+		Use:   "kvcli",
+		Short: "Command line interface for interacting with kvd",
 	}
 
 	// Add --chain-id to persistent flags and mark it required
