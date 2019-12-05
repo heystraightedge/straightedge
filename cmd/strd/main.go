@@ -19,8 +19,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	"github.com/cosmos/cosmos-sdk/x/auth"
-	genutilcli "github.com/cosmos/cosmos-sding"
+	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	"github.com/cosmos/cosmos-sdk/x/staking"
 
 	"github.com/heystraightedge/straightedge/app"
 )
@@ -104,4 +104,3 @@ func exportAppStateAndTMValidators(
 	tempApp := app.NewApp(logger, db, traceStore, true, uint(1))
 	return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 }
-

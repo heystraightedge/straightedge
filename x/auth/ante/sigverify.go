@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"encoding/hex"
 
+	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/sunnya97/tendermint/crypto/sr25519"
 	"github.com/tendermint/tendermint/crypto/multisig"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/exported"
-	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
@@ -50,10 +50,10 @@ type SigVerifiableTx interface {
 // PubKeys must be set in context for all signers before any other sigverify decorators run
 // CONTRACT: Tx must implement SigVerifiableTx interface
 type SetPubKeyDecorator struct {
-	ak keeper.AccountKeeper
+	ak auth.AccountKeeper
 }
 
-func NewSetPubKeyDecorator(ak keeper.AccountKeeper) SetPubKeyDecorator {
+func NewSetPubKeyDecorator(ak auth.AccountKeeper) SetPubKeyDecorator {
 	return SetPubKeyDecorator{
 		ak: ak,
 	}
@@ -105,11 +105,11 @@ func (spkd SetPubKeyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate b
 // CONTRACT: Pubkeys are set in context for all signers before this decorator runs
 // CONTRACT: Tx must implement SigVerifiableTx interface
 type SigGasConsumeDecorator struct {
-	ak             keeper.AccountKeeper
+	ak             auth.AccountKeeper
 	sigGasConsumer SignatureVerificationGasConsumer
 }
 
-func NewSigGasConsumeDecorator(ak keeper.AccountKeeper, sigGasConsumer SignatureVerificationGasConsumer) SigGasConsumeDecorator {
+func NewSigGasConsumeDecorator(ak auth.AccountKeeper, sigGasConsumer SignatureVerificationGasConsumer) SigGasConsumeDecorator {
 	return SigGasConsumeDecorator{
 		ak:             ak,
 		sigGasConsumer: sigGasConsumer,
@@ -160,10 +160,10 @@ func (sgcd SigGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 // CONTRACT: Pubkeys are set in context for all signers before this decorator runs
 // CONTRACT: Tx must implement SigVerifiableTx interface
 type SigVerificationDecorator struct {
-	ak keeper.AccountKeeper
+	ak auth.AccountKeeper
 }
 
-func NewSigVerificationDecorator(ak keeper.AccountKeeper) SigVerificationDecorator {
+func NewSigVerificationDecorator(ak auth.AccountKeeper) SigVerificationDecorator {
 	return SigVerificationDecorator{
 		ak: ak,
 	}
@@ -227,10 +227,10 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 //
 // CONTRACT: The tx must implement the SigVerifiableTx interface.
 type IncrementSequenceDecorator struct {
-	ak keeper.AccountKeeper
+	ak auth.AccountKeeper
 }
 
-func NewIncrementSequenceDecorator(ak keeper.AccountKeeper) IncrementSequenceDecorator {
+func NewIncrementSequenceDecorator(ak auth.AccountKeeper) IncrementSequenceDecorator {
 	return IncrementSequenceDecorator{
 		ak: ak,
 	}
@@ -264,10 +264,10 @@ func (isd IncrementSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 // Use this decorator to set parameterized limit on number of signatures in tx
 // CONTRACT: Tx must implement SigVerifiableTx interface
 type ValidateSigCountDecorator struct {
-	ak keeper.AccountKeeper
+	ak auth.AccountKeeper
 }
 
-func NewValidateSigCountDecorator(ak keeper.AccountKeeper) ValidateSigCountDecorator {
+func NewValidateSigCountDecorator(ak auth.AccountKeeper) ValidateSigCountDecorator {
 	return ValidateSigCountDecorator{
 		ak: ak,
 	}
@@ -308,7 +308,7 @@ func DefaultSigVerificationGasConsumer(
 	case sr25519.PubKeySr25519:
 		meter.ConsumeGas(params.SigVerifyCostSR25519, "ante verify: secp256k1")
 		return nil
-	
+
 	case secp256k1.PubKeySecp256k1:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
 		return nil
@@ -340,7 +340,7 @@ func consumeMultisignatureVerificationGas(meter sdk.GasMeter,
 
 // GetSignerAcc returns an account for a given address that is expected to sign
 // a transaction.
-func GetSignerAcc(ctx sdk.Context, ak keeper.AccountKeeper, addr sdk.AccAddress) (exported.Account, error) {
+func GetSignerAcc(ctx sdk.Context, ak auth.AccountKeeper, addr sdk.AccAddress) (exported.Account, error) {
 	if acc := ak.GetAccount(ctx, addr); acc != nil {
 		return acc, nil
 	}

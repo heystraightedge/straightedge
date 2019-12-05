@@ -2,16 +2,16 @@ package app
 
 import (
 	"fmt"
-	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 
+	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/sr25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
@@ -20,7 +20,7 @@ const (
 	// which currently defaults at 10, if intended
 	// memoCostPerByte     sdk.Gas = 3
 	secp256k1VerifyCost uint64 = 21000
-	sr25519VerifyCost uint64 = 21000
+	sr25519VerifyCost   uint64 = 21000
 )
 
 // NewAnteHandler returns an ante handler responsible for attempting to route an
@@ -32,7 +32,7 @@ func NewAnteHandler(ak auth.AccountKeeper, sk types.SupplyKeeper) sdk.AnteHandle
 		ctx sdk.Context, tx sdk.Tx, sim bool,
 	) (newCtx sdk.Context, err error) {
 
-		switch castTx := tx.(type) {
+		switch tx.(type) {
 		case auth.StdTx:
 			stdAnte := sdk.ChainAnteDecorators(
 				ante.NewSetUpContextDecorator(), // outermost AnteDecorator. SetUpContext must be called first
