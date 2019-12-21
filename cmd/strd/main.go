@@ -61,6 +61,7 @@ func main() {
 	rootCmd.AddCommand(AddGenesisAccountCmd(ctx, cdc, app.DefaultNodeHome, app.DefaultCLIHome))
 	rootCmd.AddCommand(client.NewCompletionCmd(rootCmd, true))
 	rootCmd.AddCommand(debug.Cmd(cdc))
+	rootCmd.AddCommand(ImportLockdropBalancesCmd(ctx, cdc, app.DefaultNodeHome, app.DefaultCLIHome))
 
 	server.AddCommands(ctx, cdc, rootCmd, newApp, exportAppStateAndTMValidators)
 

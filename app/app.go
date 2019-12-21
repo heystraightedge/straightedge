@@ -42,7 +42,7 @@ const (
 var (
 	// default home directories for expected binaries
 	DefaultCLIHome  = os.ExpandEnv("$HOME/.strcli")
-	DefaultNodeHome = os.ExpandEnv("$HOME/.strvd")
+	DefaultNodeHome = os.ExpandEnv("$HOME/.strd")
 
 	// ModuleBasics The module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
