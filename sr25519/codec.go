@@ -19,6 +19,11 @@ const (
 var cdc = amino.NewCodec()
 
 func init() {
+	RegisterCodec(cdc)
+}
+
+// RegisterCodec registers concrete types on the codec
+func RegisterCodec(cdc *amino.Codec) {
 	cdc.RegisterInterface((*crypto.PubKey)(nil), nil)
 	cdc.RegisterConcrete(PubKeySr25519{},
 		PubKeyAminoName, nil)
