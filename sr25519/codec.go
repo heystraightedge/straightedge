@@ -24,11 +24,11 @@ func init() {
 
 // RegisterCodec registers concrete types on the codec
 func RegisterCodec(cdc *amino.Codec) {
-	cdc.RegisterInterface((*crypto.PubKey)(nil), nil)
+	// cdc.RegisterInterface((*crypto.PubKey)(nil), nil)
 	cdc.RegisterConcrete(PubKeySr25519{},
 		PubKeyAminoName, nil)
 
-	cdc.RegisterInterface((*crypto.PrivKey)(nil), nil)
+	// cdc.RegisterInterface((*crypto.PrivKey)(nil), nil)
 	cdc.RegisterConcrete(PrivKeySr25519{},
 		PrivKeyAminoName, nil)
 }

@@ -5,13 +5,13 @@ go 1.13
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20191217051421-8f63573202b6
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20191221073157-ae68ce9214d7
+	github.com/cosmos/cosmos-sdk v0.34.4-0.20191221104049-44155f097cad
 	github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20190704165056-9c2d0518ed81 // indirect
-	github.com/sikkatech/go-substrate-bip39 v0.0.0-20191221071102-6dc8f498e0c0
+	github.com/sikkatech/go-substrate-bip39 v0.0.0-20191221093258-7f61eeaac83f
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.6.1

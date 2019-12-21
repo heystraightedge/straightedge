@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -88,7 +89,11 @@ func straightedgeKeygenFunc(bz []byte, algo keys.SigningAlgo) tmcrypto.PrivKey {
 	} else if algo == keys.Sr25519 {
 		var bzArr [32]byte
 		copy(bzArr[:], bz)
-		return sr25519.PrivKeySr25519(bzArr)
+
+		privKey := sr25519.PrivKeySr25519(bzArr)
+		fmt.Println(privKey.PubKey())
+
+		return privKey
 	}
 	return nil
 }
@@ -98,7 +103,7 @@ func straightedgeDeriveFunc(mnemonic string, bip39Passphrase, hdPath string, alg
 	if algo == keys.Secp256k1 {
 		return keys.StdDeriveKey(mnemonic, bip39Passphrase, hdPath, algo)
 	} else if algo == keys.Sr25519 {
-		sr25519DeriveFunction(mnemonic, bip39Passphrase, hdPath, algo)
+		return sr25519DeriveFunction(mnemonic, bip39Passphrase, hdPath, algo)
 	}
 	return nil, keys.ErrUnsupportedSigningAlgo
 }
