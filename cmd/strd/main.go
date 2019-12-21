@@ -79,7 +79,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer) abci.Application
 		cache = store.NewCommitKVStoreCacheManager()
 	}
 
-	return app.NewApp(
+	return app.NewStraightedgeApp(
 		logger, db, traceStore, true, invCheckPeriod,
 		baseapp.SetPruning(store.NewPruningOptionsFromString(viper.GetString("pruning"))),
 		baseapp.SetMinGasPrices(viper.GetString(server.FlagMinGasPrices)),
@@ -94,13 +94,13 @@ func exportAppStateAndTMValidators(
 ) (json.RawMessage, []tmtypes.GenesisValidator, error) {
 
 	if height != -1 {
-		tempApp := app.NewApp(logger, db, traceStore, false, uint(1))
+		tempApp := app.NewStraightedgeApp(logger, db, traceStore, false, uint(1))
 		err := tempApp.LoadHeight(height)
 		if err != nil {
 			return nil, nil, err
 		}
 		return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 	}
-	tempApp := app.NewApp(logger, db, traceStore, true, uint(1))
+	tempApp := app.NewStraightedgeApp(logger, db, traceStore, true, uint(1))
 	return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 }

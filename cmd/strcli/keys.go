@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys"
 
 	"github.com/heystraightedge/straightedge/sr25519"
+	substratebip39 "github.com/sikkatech/go-substrate-bip39"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
@@ -52,12 +53,17 @@ func keyCommands() *cobra.Command {
 
 func getKeybase(cmd *cobra.Command, dryrun bool, buf io.Reader) (keys.Keybase, error) {
 	if dryrun {
-		return keys.NewInMemory(keys.WithKeygenFunc()), nil
+		return keys.NewInMemory(
+			keys.WithKeygenFunc(straightedgeKeygenFunc),
+			keys.WithDeriveFunc(straightedgeDeriveFunc),
+			keys.WithSupportedAlgos([]keys.SigningAlgo{keys.Secp256k1, keys.Sr25519}),
+			keys.WithSupportedAlgosLedger([]keys.SigningAlgo{keys.Secp256k1}),
+		), nil
 	}
 
 	return clientkeys.NewKeyringFromHomeFlag(buf,
 		keys.WithKeygenFunc(straightedgeKeygenFunc),
-		keys.WithDeriveFunction(straightedgeKeygenFunc),
+		keys.WithDeriveFunc(straightedgeDeriveFunc),
 		keys.WithSupportedAlgos([]keys.SigningAlgo{keys.Secp256k1, keys.Sr25519}),
 		keys.WithSupportedAlgosLedger([]keys.SigningAlgo{keys.Secp256k1}),
 	)
@@ -88,11 +94,19 @@ func straightedgeKeygenFunc(bz []byte, algo keys.SigningAlgo) tmcrypto.PrivKey {
 }
 
 // Straightedge DeriveFunc currently supports secp256k1 and sr25119 keys
-func straightedgeDeriveFunc(mnemonic string, bip39Passphrase, hdPath string, algo SigningAlgo) ([]byte, error) {
+func straightedgeDeriveFunc(mnemonic string, bip39Passphrase, hdPath string, algo keys.SigningAlgo) ([]byte, error) {
 	if algo == keys.Secp256k1 {
-		return keys.baseDeriveKey(mnemonic, bip39Passphrase, hdPath, algo)
+		return keys.StdDeriveKey(mnemonic, bip39Passphrase, hdPath, algo)
 	} else if algo == keys.Sr25519 {
+		sr25519DeriveFunction(mnemonic, bip39Passphrase, hdPath, algo)
+	}
+	return nil, keys.ErrUnsupportedSigningAlgo
+}
 
+func sr25519DeriveFunction(mnemonic string, bip39Passphrase, hdPath string, algo keys.SigningAlgo) ([]byte, error) {
+	if algo == keys.Sr25519 {
+		seed, err := substratebip39.SeedFromMnemonic(mnemonic, bip39Passphrase)
+		return seed[:], err
 	}
 	return nil, keys.ErrUnsupportedSigningAlgo
 }
