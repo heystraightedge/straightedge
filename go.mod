@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20191217051421-8f63573202b6
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20191221104049-44155f097cad
+	github.com/cosmos/cosmos-sdk v0.34.4-0.20191223234145-48562f720d92
 	github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/onsi/ginkgo v1.10.1 // indirect
