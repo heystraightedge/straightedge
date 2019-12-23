@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmamino "github.com/tendermint/tendermint/crypto/encoding/amino"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -16,14 +17,18 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/debug"
+	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
+	cryptokeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
+	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 
 	"github.com/heystraightedge/straightedge/app"
+	"github.com/heystraightedge/straightedge/sr25519"
 )
 
 // kvd custom flags
@@ -33,6 +38,14 @@ var invCheckPeriod uint
 
 func main() {
 	cdc := app.MakeCodec()
+	cryptokeys.CryptoCdc = cdc
+	clientkeys.KeysCdc = cdc
+
+	genutil.ModuleCdc = cdc
+
+	// TODO:  Can be removed when using tendermint version of sr25519
+	tmamino.RegisterKeyType(sr25519.PrivKeySr25519{}, sr25519.PrivKeyAminoName)
+	tmamino.RegisterKeyType(sr25519.PubKeySr25519{}, sr25519.PubKeyAminoName)
 
 	config := sdk.GetConfig()
 	app.SetBech32AddressPrefixes(config)

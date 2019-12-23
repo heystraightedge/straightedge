@@ -12,6 +12,7 @@ import (
 
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
+	cryptokeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -78,15 +79,19 @@ var (
 // returned.
 func MakeCodec() *codec.Codec {
 	var cdc = codec.New()
+	RegisterCodec(cdc)
+	return cdc.Seal()
+}
 
+// Register application required codecs
+func RegisterCodec(cdc *codec.Codec) {
 	ModuleBasics.RegisterCodec(cdc)
 	sdk.RegisterCodec(cdc)
 	codec.RegisterCrypto(cdc)
 	codec.RegisterEvidences(cdc)
 	authvesting.RegisterCodec(cdc)
 	sr25519.RegisterCodec(cdc)
-
-	return cdc.Seal()
+	cryptokeys.RegisterCodec(cdc)
 }
 
 func SetBech32AddressPrefixes(config *sdk.Config) {
@@ -268,7 +273,8 @@ func NewStraightedgeApp(
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
-	app.SetAnteHandler(auth.NewAnteHandler(app.accountKeeper, app.supplyKeeper, auth.DefaultSigVerificationGasConsumer))
+	// Use custom consumeSigGas
+	app.SetAnteHandler(auth.NewAnteHandler(app.accountKeeper, app.supplyKeeper, consumeSigGas))
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
