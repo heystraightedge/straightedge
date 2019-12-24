@@ -27,7 +27,7 @@ Reference implementation of Straightedge. Built using the [comsos-sdk](https://g
 make install
 ```
 
-To join the latest network, head over to the [launch repo](https://github.com/heystraightedge/straightedge).
+To join the latest network, head over to the [launch repo](https://github.com/heystraightedge/launch).
 <!-- 
 ## License
 
