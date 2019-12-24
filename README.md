@@ -13,7 +13,7 @@
 
 <div align="center">
 
-### [Telegram](https://t.me/HeyStraightedge) | [Medium](https://medium.com/straightedge)
+### [Telegram](https://t.me/HeyStraightedge) | [Discord](https://discord.gg/rbamhbC) | [Medium](https://medium.com/straightedge)
 
 ### Participate in Straightedge!
 
