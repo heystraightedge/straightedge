@@ -3,9 +3,13 @@ package app
 import (
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/spf13/viper"
 
 	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/cli"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -33,6 +37,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
+	"github.com/cosmwasm/wasmd/x/wasm"
 )
 
 const (
@@ -62,6 +67,7 @@ var (
 		supply.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
+		wasm.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -124,6 +130,7 @@ type StraightedgeApp struct {
 	paramsKeeper   params.Keeper
 	upgradeKeeper  upgrade.Keeper
 	evidenceKeeper evidence.Keeper
+	wasmKeeper     wasm.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -186,6 +193,13 @@ func NewStraightedgeApp(
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
 	app.upgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], app.cdc)
 
+	// just re-use the full router - do we want to limit this more?
+	var wasmRouter = bApp.Router()
+	// better way to get this dir???
+	homeDir := viper.GetString(cli.HomeFlag)
+	wasmDir := filepath.Join(homeDir, "wasm")
+	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
+
 	// create evidence keeper with evidence router
 	evidenceKeeper := evidence.NewKeeper(
 		app.cdc, keys[evidence.StoreKey], evidenceSubspace, evidence.DefaultCodespace,
@@ -230,6 +244,7 @@ func NewStraightedgeApp(
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
+		wasm.NewAppModule(app.wasmKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -243,7 +258,7 @@ func NewStraightedgeApp(
 	app.mm.SetOrderInitGenesis(
 		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
 		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
-		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
+		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName, wasm.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)

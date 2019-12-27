@@ -9,10 +9,11 @@ import (
 	"github.com/spf13/viper"
 
 	amino "github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/libs/cli"
 	tmamino "github.com/tendermint/tendermint/crypto/encoding/amino"
+	"github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/lcd"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
@@ -27,8 +28,6 @@ import (
 
 	"github.com/heystraightedge/straightedge/app"
 	"github.com/heystraightedge/straightedge/sr25519"
-
-
 )
 
 func main() {
@@ -59,7 +58,7 @@ func main() {
 	}
 
 	// Add --chain-id to persistent flags and mark it required
-	rootCmd.PersistentFlags().String(client.FlagChainID, "", "Chain ID of tendermint node")
+	rootCmd.PersistentFlags().String(flags.FlagChainID, "", "Chain ID of tendermint node")
 	rootCmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
 		return initConfig(rootCmd)
 	}
@@ -70,13 +69,13 @@ func main() {
 		client.ConfigCmd(app.DefaultCLIHome),
 		queryCmd(cdc),
 		txCmd(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 		lcd.ServeCommand(cdc, registerRoutes),
-		client.LineBreak,
+		flags.LineBreak,
 		keyCommands(),
-		client.LineBreak,
+		flags.LineBreak,
 		version.Cmd,
-		client.NewCompletionCmd(rootCmd, true),
+		flags.NewCompletionCmd(rootCmd, true),
 	)
 
 	// Add flags and prefix all env exposed with STR
@@ -98,12 +97,12 @@ func queryCmd(cdc *amino.Codec) *cobra.Command {
 
 	queryCmd.AddCommand(
 		authcmd.GetAccountCmd(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 		rpc.ValidatorCommand(cdc),
 		rpc.BlockCommand(),
 		authcmd.QueryTxsByEventsCmd(cdc),
 		authcmd.QueryTxCmd(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 	)
 
 	// add modules' query commands
@@ -120,15 +119,15 @@ func txCmd(cdc *amino.Codec) *cobra.Command {
 
 	txCmd.AddCommand(
 		bankcmd.SendTxCmd(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 		authcmd.GetSignCommand(cdc),
 		authcmd.GetMultiSignCommand(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 		authcmd.GetBroadcastCommand(cdc),
 		authcmd.GetEncodeCommand(cdc),
 		authcmd.GetDecodeCommand(cdc),
 		authcmd.GetDecodeTxCmd(cdc),
-		client.LineBreak,
+		flags.LineBreak,
 	)
 
 	// add modules' tx commands
@@ -168,7 +167,7 @@ func initConfig(cmd *cobra.Command) error {
 			return err
 		}
 	}
-	if err := viper.BindPFlag(client.FlagChainID, cmd.PersistentFlags().Lookup(client.FlagChainID)); err != nil {
+	if err := viper.BindPFlag(flags.FlagChainID, cmd.PersistentFlags().Lookup(flags.FlagChainID)); err != nil {
 		return err
 	}
 	if err := viper.BindPFlag(cli.EncodingFlag, cmd.PersistentFlags().Lookup(cli.EncodingFlag)); err != nil {
