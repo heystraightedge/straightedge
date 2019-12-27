@@ -34,6 +34,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 
+	// "github.com/cosmwasm/wasmd/x/wasm"
 	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 
@@ -65,7 +66,6 @@ var (
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
 		togglerouter.AppModuleBasic{},
-
 		// wasm.AppModuleBasic{},
 	)
 
