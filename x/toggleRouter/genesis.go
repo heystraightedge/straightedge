@@ -24,11 +24,11 @@ func ValidateGenesis(data GenesisState) error {
 }
 
 // InitGenesis sets distribution information for genesis.
-func InitGenesis(ctx sdk.Context, router Router, data GenesisState) {
+func InitGenesis(ctx sdk.Context, router *Router, data GenesisState) {
 	router.setDisabledRoutes(ctx, data.DisabledRoutes)
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper.
-func ExportGenesis(ctx sdk.Context, router Router) GenesisState {
+func ExportGenesis(ctx sdk.Context, router *Router) GenesisState {
 	return NewGenesisState(router.getDisabledRoutes(ctx))
 }

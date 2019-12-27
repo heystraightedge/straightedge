@@ -28,7 +28,7 @@ func (AppModuleBasic) Name() string {
 }
 
 // RegisterCodec registers the togglerouter module's types for the given codec.
-func (AppModuleBasic) RegisterCodec(cdc *codec.Codec) {}
+func (AppModuleBasic) RegisterCodec(cdc *codec.Codec) { RegisterCodec(cdc) }
 
 // DefaultGenesis returns default genesis state as raw bytes for the genutil
 // module.
@@ -61,11 +61,11 @@ func (AppModuleBasic) GetQueryCmd(_ *codec.Codec) *cobra.Command { return nil }
 type AppModule struct {
 	AppModuleBasic
 
-	router Router
+	router *Router
 }
 
 // NewAppModule creates a new AppModule object
-func NewAppModule(router Router) module.AppModule {
+func NewAppModule(router *Router) module.AppModule {
 	return module.NewGenesisOnlyAppModule(AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		router:         router,

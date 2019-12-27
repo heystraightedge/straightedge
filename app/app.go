@@ -64,6 +64,8 @@ var (
 		supply.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
+		togglerouter.AppModuleBasic{},
+
 		// wasm.AppModuleBasic{},
 	)
 
@@ -247,6 +249,7 @@ func NewStraightedgeApp(
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
+		togglerouter.NewAppModule(router),
 		// wasm.NewAppModule(app.wasmKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -261,7 +264,7 @@ func NewStraightedgeApp(
 	app.mm.SetOrderInitGenesis(
 		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
 		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
-		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
+		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName, togglerouter.ModuleName,
 		// wasm.ModuleName,
 	)
 

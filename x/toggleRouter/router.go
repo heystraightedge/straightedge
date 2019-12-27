@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ModuleName = "msgrouter"
+	ModuleName = "router"
 
 	// DefaultParamspace for params keeper
 	DefaultParamspace = ModuleName
