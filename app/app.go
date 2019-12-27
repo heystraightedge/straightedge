@@ -33,6 +33,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
+
+	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 
 const (
@@ -62,6 +64,9 @@ var (
 		supply.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
+		togglerouter.AppModuleBasic{},
+
+		// wasm.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -124,6 +129,7 @@ type StraightedgeApp struct {
 	paramsKeeper   params.Keeper
 	upgradeKeeper  upgrade.Keeper
 	evidenceKeeper evidence.Keeper
+	// wasmKeeper     wasm.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -143,6 +149,7 @@ func NewStraightedgeApp(
 	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetAppVersion(version.Version)
+
 	keys := sdk.NewKVStoreKeys(
 		bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
@@ -170,6 +177,11 @@ func NewStraightedgeApp(
 	crisisSubspace := app.paramsKeeper.Subspace(crisis.DefaultParamspace)
 	evidenceSubspace := app.paramsKeeper.Subspace(evidence.DefaultParamspace)
 
+	// Create Router
+	routerSubspace := app.paramsKeeper.Subspace(togglerouter.DefaultParamspace).WithKeyTable(togglerouter.ParamKeyTable())
+	router := togglerouter.NewRouter(routerSubspace)
+	app.BaseApp.SetRouter(router)
+
 	// add keepers
 	app.accountKeeper = auth.NewAccountKeeper(app.cdc, keys[auth.StoreKey], authSubspace, auth.ProtoBaseAccount)
 	app.bankKeeper = bank.NewBaseKeeper(app.accountKeeper, bankSubspace, bank.DefaultCodespace, app.ModuleAccountAddrs())
@@ -185,6 +197,13 @@ func NewStraightedgeApp(
 	)
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
 	app.upgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], app.cdc)
+
+	// // just re-use the full router - do we want to limit this more?
+	// var wasmRouter = bApp.Router()
+	// // better way to get this dir???
+	// homeDir := viper.GetString(cli.HomeFlag)
+	// wasmDir := filepath.Join(homeDir, "wasm")
+	// app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
 
 	// create evidence keeper with evidence router
 	evidenceKeeper := evidence.NewKeeper(
@@ -230,6 +249,8 @@ func NewStraightedgeApp(
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
+		togglerouter.NewAppModule(router),
+		// wasm.NewAppModule(app.wasmKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -238,12 +259,14 @@ func NewStraightedgeApp(
 	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName)
 	app.mm.SetOrderEndBlockers(crisis.ModuleName, gov.ModuleName, staking.ModuleName)
 
+	// NOTE: router genesis needs to be initialized first
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
 	app.mm.SetOrderInitGenesis(
-		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
-		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
+		togglerouter.ModuleName, distr.ModuleName, staking.ModuleName, auth.ModuleName,
+		bank.ModuleName, slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
 		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
+		// wasm.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)
