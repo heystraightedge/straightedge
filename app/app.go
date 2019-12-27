@@ -178,7 +178,7 @@ func NewStraightedgeApp(
 	evidenceSubspace := app.paramsKeeper.Subspace(evidence.DefaultParamspace)
 
 	// Create Router
-	routerSubspace := app.paramsKeeper.Subspace(togglerouter.DefaultParamspace)
+	routerSubspace := app.paramsKeeper.Subspace(togglerouter.DefaultParamspace).WithKeyTable(togglerouter.ParamKeyTable())
 	router := togglerouter.NewRouter(routerSubspace)
 	app.BaseApp.SetRouter(router)
 
@@ -259,12 +259,13 @@ func NewStraightedgeApp(
 	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName)
 	app.mm.SetOrderEndBlockers(crisis.ModuleName, gov.ModuleName, staking.ModuleName)
 
+	// NOTE: router genesis should be initialized first
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
 	app.mm.SetOrderInitGenesis(
-		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
-		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
-		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName, togglerouter.ModuleName,
+		togglerouter.ModuleName, distr.ModuleName, staking.ModuleName, auth.ModuleName,
+		bank.ModuleName, slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
+		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
 		// wasm.ModuleName,
 	)
 

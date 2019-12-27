@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 )
 
@@ -20,14 +19,14 @@ var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
 type Router struct {
 	// The reference to the Paramstore to get and set gov specific params
-	paramSpace types.ParamSubspace
+	paramSpace params.Subspace
 	routes     map[string]sdk.Handler
 }
 
 var _ sdk.Router = NewRouter(params.Subspace{})
 
 // NewRouter returns a reference to a new router.
-func NewRouter(paramSpace types.ParamSubspace) *Router {
+func NewRouter(paramSpace params.Subspace) *Router {
 	return &Router{
 		paramSpace: paramSpace,
 		routes:     make(map[string]sdk.Handler),

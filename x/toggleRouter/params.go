@@ -13,7 +13,7 @@ var ParamStoreKeyDisabledRoutes = []byte("disabledroutes")
 // ParamKeyTable type declaration for parameters
 func ParamKeyTable() params.KeyTable {
 	return params.NewKeyTable(
-		params.NewParamSetPair(ParamStoreKeyDisabledRoutes, []string{""}, validateDisabledRoutes),
+		params.NewParamSetPair(ParamStoreKeyDisabledRoutes, []string{}, validateDisabledRoutes),
 	)
 }
 
@@ -39,5 +39,5 @@ func (rtr *Router) getDisabledRoutes(ctx sdk.Context) []string {
 }
 
 func (rtr *Router) setDisabledRoutes(ctx sdk.Context, disabledRoutes []string) {
-	rtr.paramSpace.Set(ctx, ParamStoreKeyDisabledRoutes, &disabledRoutes)
+	rtr.paramSpace.Set(ctx, ParamStoreKeyDisabledRoutes, disabledRoutes)
 }
