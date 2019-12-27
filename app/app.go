@@ -3,13 +3,9 @@ package app
 import (
 	"io"
 	"os"
-	"path/filepath"
-
-	"github.com/spf13/viper"
 
 	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/cli"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -37,7 +33,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
-	"github.com/cosmwasm/wasmd/x/wasm"
+
+	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 
 const (
@@ -67,7 +64,7 @@ var (
 		supply.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
-		wasm.AppModuleBasic{},
+		// wasm.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -130,7 +127,7 @@ type StraightedgeApp struct {
 	paramsKeeper   params.Keeper
 	upgradeKeeper  upgrade.Keeper
 	evidenceKeeper evidence.Keeper
-	wasmKeeper     wasm.Keeper
+	// wasmKeeper     wasm.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -150,6 +147,7 @@ func NewStraightedgeApp(
 	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetAppVersion(version.Version)
+
 	keys := sdk.NewKVStoreKeys(
 		bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
@@ -177,6 +175,11 @@ func NewStraightedgeApp(
 	crisisSubspace := app.paramsKeeper.Subspace(crisis.DefaultParamspace)
 	evidenceSubspace := app.paramsKeeper.Subspace(evidence.DefaultParamspace)
 
+	// Create Router
+	routerSubspace := app.paramsKeeper.Subspace(togglerouter.DefaultParamspace)
+	router := togglerouter.NewRouter(routerSubspace)
+	app.BaseApp.SetRouter(router)
+
 	// add keepers
 	app.accountKeeper = auth.NewAccountKeeper(app.cdc, keys[auth.StoreKey], authSubspace, auth.ProtoBaseAccount)
 	app.bankKeeper = bank.NewBaseKeeper(app.accountKeeper, bankSubspace, bank.DefaultCodespace, app.ModuleAccountAddrs())
@@ -193,12 +196,12 @@ func NewStraightedgeApp(
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
 	app.upgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], app.cdc)
 
-	// just re-use the full router - do we want to limit this more?
-	var wasmRouter = bApp.Router()
-	// better way to get this dir???
-	homeDir := viper.GetString(cli.HomeFlag)
-	wasmDir := filepath.Join(homeDir, "wasm")
-	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
+	// // just re-use the full router - do we want to limit this more?
+	// var wasmRouter = bApp.Router()
+	// // better way to get this dir???
+	// homeDir := viper.GetString(cli.HomeFlag)
+	// wasmDir := filepath.Join(homeDir, "wasm")
+	// app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
 
 	// create evidence keeper with evidence router
 	evidenceKeeper := evidence.NewKeeper(
@@ -244,7 +247,7 @@ func NewStraightedgeApp(
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
-		wasm.NewAppModule(app.wasmKeeper),
+		// wasm.NewAppModule(app.wasmKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -258,7 +261,8 @@ func NewStraightedgeApp(
 	app.mm.SetOrderInitGenesis(
 		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
 		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
-		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName, wasm.ModuleName,
+		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
+		// wasm.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)

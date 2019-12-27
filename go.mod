@@ -5,13 +5,16 @@ go 1.13
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20191217051421-8f63573202b6
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20191223234145-48562f720d92
+	github.com/cosmos/cosmos-sdk v0.34.4-0.20191227050645-3365cc273e7c
 	github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d
-	github.com/cosmwasm/wasmd v0.0.0-20191202225236-d12c434ab6cc
-	github.com/gogo/protobuf v1.3.1
+	github.com/golang/mock v1.3.1 // indirect
+	github.com/gorilla/mux v1.7.3
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
+	github.com/prometheus/client_golang v1.1.0 // indirect
+	github.com/rcrowley/go-metrics v0.0.0-20190706150252-9beb055b7962 // indirect
 	github.com/sikkatech/go-substrate-bip39 v0.0.0-20191221093258-7f61eeaac83f
+	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.6.1
 	github.com/stretchr/testify v1.4.0
@@ -20,5 +23,6 @@ require (
 	github.com/tendermint/tm-db v0.2.0
 	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915
 	golang.org/x/net v0.0.0-20190916140828-c8589233b77d // indirect
+	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )
