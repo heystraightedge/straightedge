@@ -27,7 +27,19 @@ Reference implementation of Straightedge. Built using the [comsos-sdk](https://g
 make install
 ```
 
-To join the latest network, head over to the [launch repo](https://github.com/heystraightedge/launch).
+To join the mainnet, head over to the [mainnet launch repo](https://github.com/heystraightedge/mainnet).
+
+## Importing Lockdrop Keys
+
+During the lockdrop, participants submitted SR25519 keys to be creditted in the Edgeware/Straightedge networks.  To support these keys we have added support to the Straightedge CLI wallet for SR25519 keys. To add your lockdrop keys, please use the following commands:
+
+```
+strcli keys add [name] --algo sr25519 --recover
+[insert mnemonic here]
+```
+
+As sr25519 is a relatively new standard, it is not supported by many wallets as of now.  It is recommended to move funds to a new secp256k1 address, for easier use in Cosmos wallets.
+
 <!-- 
 ## License
 
