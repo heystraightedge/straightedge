@@ -5,7 +5,8 @@ go 1.13
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20191217051421-8f63573202b6
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20200106221634-6e50c29d87cc
+	github.com/confio/go-cosmwasm v0.4.1
+	github.com/cosmos/cosmos-sdk v0.34.4-0.20191227050645-3365cc273e7c
 	github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d
 	github.com/cosmwasm/wasmd v0.0.0-20191202225236-d12c434ab6cc
 	github.com/gorilla/mux v1.7.3

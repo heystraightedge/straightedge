@@ -34,7 +34,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 
-	// "github.com/cosmwasm/wasmd/x/wasm"
+	"github.com/heystraightedge/straightedge/x/wasm"
 	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 
@@ -66,7 +66,7 @@ var (
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
 		togglerouter.AppModuleBasic{},
-		// wasm.AppModuleBasic{},
+		wasm.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -129,7 +129,7 @@ type StraightedgeApp struct {
 	paramsKeeper   params.Keeper
 	upgradeKeeper  upgrade.Keeper
 	evidenceKeeper evidence.Keeper
-	// wasmKeeper     wasm.Keeper
+	wasmKeeper     wasm.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -198,12 +198,12 @@ func NewStraightedgeApp(
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
 	app.upgradeKeeper = upgrade.NewKeeper(map[int64]bool{}, keys[upgrade.StoreKey], app.cdc)
 
-	// // just re-use the full router - do we want to limit this more?
-	// var wasmRouter = bApp.Router()
-	// // better way to get this dir???
-	// homeDir := viper.GetString(cli.HomeFlag)
-	// wasmDir := filepath.Join(homeDir, "wasm")
-	// app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
+	// just re-use the full router - do we want to limit this more?
+	var wasmRouter = bApp.Router()
+	// better way to get this dir???
+	homeDir := viper.GetString(cli.HomeFlag)
+	wasmDir := filepath.Join(homeDir, "wasm")
+	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
 
 	// create evidence keeper with evidence router
 	evidenceKeeper := evidence.NewKeeper(
@@ -250,7 +250,7 @@ func NewStraightedgeApp(
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
 		togglerouter.NewAppModule(router),
-		// wasm.NewAppModule(app.wasmKeeper),
+		wasm.NewAppModule(app.wasmKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -266,7 +266,7 @@ func NewStraightedgeApp(
 		togglerouter.ModuleName, distr.ModuleName, staking.ModuleName, auth.ModuleName,
 		bank.ModuleName, slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
 		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
-		// wasm.ModuleName,
+		wasm.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)
