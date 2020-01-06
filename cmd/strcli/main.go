@@ -126,7 +126,6 @@ func txCmd(cdc *amino.Codec) *cobra.Command {
 		authcmd.GetBroadcastCommand(cdc),
 		authcmd.GetEncodeCommand(cdc),
 		authcmd.GetDecodeCommand(cdc),
-		authcmd.GetDecodeTxCmd(cdc),
 		flags.LineBreak,
 	)
 
