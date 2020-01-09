@@ -3,9 +3,13 @@ package app
 import (
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/spf13/viper"
 
 	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/cli"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
