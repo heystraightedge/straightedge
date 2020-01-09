@@ -34,7 +34,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 
-	"github.com/heystraightedge/straightedge/x/wasm"
+	"github.com/cosmwasm/wasmd/x/wasm"
 	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 

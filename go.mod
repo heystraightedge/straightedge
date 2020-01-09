@@ -2,6 +2,8 @@ module github.com/heystraightedge/straightedge
 
 go 1.13
 
+replace github.com/cosmwasm/wasmd => github.com/sikkatech/wasmd v0.0.0-20200108212716-57688babf00e
+
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20191217051421-8f63573202b6
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
