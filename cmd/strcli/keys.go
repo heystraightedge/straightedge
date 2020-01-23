@@ -8,11 +8,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/crypto/keys"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/heystraightedge/straightedge/sr25519"
 	substratebip39 "github.com/sikkatech/go-substrate-bip39"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
+	"github.com/tendermint/tendermint/crypto/sr25519"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -62,7 +62,7 @@ func getKeybase(cmd *cobra.Command, dryrun bool, buf io.Reader) (keys.Keybase, e
 		), nil
 	}
 
-	return clientkeys.NewKeyringFromHomeFlag(buf,
+	return keys.NewKeyring(sdk.GetConfig().GetKeyringServiceName(), viper.GetString(flags.FlagKeyringBackend), viper.GetString(flags.FlagHome), buf,
 		keys.WithKeygenFunc(straightedgeKeygenFunc),
 		keys.WithDeriveFunc(straightedgeDeriveFunc),
 		keys.WithSupportedAlgos([]keys.SigningAlgo{keys.Secp256k1, keys.Sr25519}),
@@ -81,11 +81,9 @@ func runAddCmd(cmd *cobra.Command, args []string) error {
 }
 
 // Straightedge KeyGenFunc currently supports secp256k1 and sr25119 keys
-func straightedgeKeygenFunc(bz []byte, algo keys.SigningAlgo) tmcrypto.PrivKey {
+func straightedgeKeygenFunc(bz []byte, algo keys.SigningAlgo) (tmcrypto.PrivKey, error) {
 	if algo == keys.Secp256k1 {
-		var bzArr [32]byte
-		copy(bzArr[:], bz)
-		return secp256k1.PrivKeySecp256k1(bzArr)
+		return keys.SecpPrivKeyGen(bz), nil
 	} else if algo == keys.Sr25519 {
 		var bzArr [32]byte
 		copy(bzArr[:], bz)
@@ -93,9 +91,9 @@ func straightedgeKeygenFunc(bz []byte, algo keys.SigningAlgo) tmcrypto.PrivKey {
 		privKey := sr25519.PrivKeySr25519(bzArr)
 		fmt.Println(privKey.PubKey())
 
-		return privKey
+		return privKey, nil
 	}
-	return nil
+	return nil, keys.ErrUnsupportedSigningAlgo
 }
 
 // Straightedge DeriveFunc currently supports secp256k1 and sr25119 keys

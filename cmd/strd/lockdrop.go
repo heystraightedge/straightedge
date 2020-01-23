@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/heystraightedge/straightedge/sr25519"
+	"github.com/tendermint/tendermint/crypto/sr25519"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 

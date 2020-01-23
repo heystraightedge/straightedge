@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/viper"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmamino "github.com/tendermint/tendermint/crypto/encoding/amino"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -28,7 +27,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 
 	"github.com/heystraightedge/straightedge/app"
-	"github.com/heystraightedge/straightedge/sr25519"
 )
 
 // kvd custom flags
@@ -42,10 +40,6 @@ func main() {
 	clientkeys.KeysCdc = cdc
 
 	genutil.ModuleCdc = cdc
-
-	// TODO:  Can be removed when using tendermint version of sr25519
-	tmamino.RegisterKeyType(sr25519.PrivKeySr25519{}, sr25519.PrivKeyAminoName)
-	tmamino.RegisterKeyType(sr25519.PubKeySr25519{}, sr25519.PubKeyAminoName)
 
 	config := sdk.GetConfig()
 	app.SetBech32AddressPrefixes(config)

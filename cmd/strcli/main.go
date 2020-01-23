@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/viper"
 
 	amino "github.com/tendermint/go-amino"
-	tmamino "github.com/tendermint/tendermint/crypto/encoding/amino"
 	"github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -27,7 +26,6 @@ import (
 	bankcmd "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 
 	"github.com/heystraightedge/straightedge/app"
-	"github.com/heystraightedge/straightedge/sr25519"
 )
 
 func main() {
@@ -38,10 +36,6 @@ func main() {
 	cdc := app.MakeCodec()
 	cryptokeys.CryptoCdc = cdc
 	clientkeys.KeysCdc = cdc
-
-	// TODO:  Can be removed when using tendermint version of sr25519
-	tmamino.RegisterKeyType(sr25519.PrivKeySr25519{}, sr25519.PrivKeyAminoName)
-	tmamino.RegisterKeyType(sr25519.PubKeySr25519{}, sr25519.PubKeyAminoName)
 
 	// Read in the configuration file for the sdk
 	config := sdk.GetConfig()

@@ -7,10 +7,9 @@ import (
 
 	"github.com/spf13/viper"
 
-	sr25519 "github.com/heystraightedge/straightedge/sr25519"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/cli"
-	cmn "github.com/tendermint/tendermint/libs/common"
+	tmos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
@@ -98,7 +97,6 @@ func RegisterCodec(cdc *codec.Codec) {
 	codec.RegisterCrypto(cdc)
 	codec.RegisterEvidences(cdc)
 	authvesting.RegisterCodec(cdc)
-	sr25519.RegisterCodec(cdc)
 	cryptokeys.RegisterCodec(cdc)
 }
 
@@ -306,7 +304,7 @@ func NewStraightedgeApp(
 	if loadLatest {
 		err := app.LoadLatestVersion(app.keys[bam.MainStoreKey])
 		if err != nil {
-			cmn.Exit(err.Error())
+			tmos.Exit(err.Error())
 		}
 	}
 
