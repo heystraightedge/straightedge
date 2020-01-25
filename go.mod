@@ -7,7 +7,7 @@ replace github.com/cosmwasm/wasmd => github.com/sikkatech/wasmd v0.0.0-202001230
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200102211924-4bcbc698314f
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20200122195256-f18005d2f18b
+	github.com/cosmos/cosmos-sdk v0.38.0
 	github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d
 	github.com/cosmwasm/wasmd v0.0.0-00010101000000-000000000000
 	github.com/gorilla/mux v1.7.3

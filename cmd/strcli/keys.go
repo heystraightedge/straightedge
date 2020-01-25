@@ -62,7 +62,7 @@ func getKeybase(cmd *cobra.Command, dryrun bool, buf io.Reader) (keys.Keybase, e
 		), nil
 	}
 
-	return keys.NewKeyring(sdk.GetConfig().GetKeyringServiceName(), viper.GetString(flags.FlagKeyringBackend), viper.GetString(flags.FlagHome), buf,
+	return keys.NewKeyring(sdk.KeyringServiceName(), viper.GetString(flags.FlagKeyringBackend), viper.GetString(flags.FlagHome), buf,
 		keys.WithKeygenFunc(straightedgeKeygenFunc),
 		keys.WithDeriveFunc(straightedgeDeriveFunc),
 		keys.WithSupportedAlgos([]keys.SigningAlgo{keys.Secp256k1, keys.Sr25519}),
