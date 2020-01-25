@@ -139,6 +139,12 @@ type StraightedgeApp struct {
 	sm *module.SimulationManager
 }
 
+// WasmWrapper allows us to use namespacing in the config file
+// This is only used for parsing in the app, x/wasm expects WasmConfig
+type WasmWrapper struct {
+	Wasm wasm.WasmConfig `mapstructure:"wasm"`
+}
+
 // NewStraightedgeApp returns a reference to an initialized StraightedgeApp.
 func NewStraightedgeApp(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool,
@@ -155,6 +161,7 @@ func NewStraightedgeApp(
 		bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
 		gov.StoreKey, params.StoreKey, evidence.StoreKey, upgrade.StoreKey,
+		wasm.StoreKey,
 	)
 	tKeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
 
@@ -204,7 +211,15 @@ func NewStraightedgeApp(
 	// better way to get this dir???
 	homeDir := viper.GetString(cli.HomeFlag)
 	wasmDir := filepath.Join(homeDir, "wasm")
-	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir)
+
+	wasmWrap := WasmWrapper{Wasm: wasm.DefaultWasmConfig()}
+	err := viper.Unmarshal(&wasmWrap)
+	if err != nil {
+		panic("error while reading wasm config: " + err.Error())
+	}
+	wasmConfig := wasmWrap.Wasm
+
+	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir, wasmConfig)
 
 	// create evidence keeper with evidence router
 	evidenceKeeper := evidence.NewKeeper(
