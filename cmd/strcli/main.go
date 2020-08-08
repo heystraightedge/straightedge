@@ -8,15 +8,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	amino "github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/libs/cli"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
+	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/lcd"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	cryptokeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -24,6 +20,9 @@ import (
 	authrest "github.com/cosmos/cosmos-sdk/x/auth/client/rest"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	bankcmd "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
+
+	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/heystraightedge/straightedge/app"
 )
@@ -34,12 +33,12 @@ func main() {
 
 	// Instantiate the codec for the command line application
 	cdc := app.MakeCodec()
-	cryptokeys.CryptoCdc = cdc
-	clientkeys.KeysCdc = cdc
 
 	// Read in the configuration file for the sdk
 	config := sdk.GetConfig()
-	app.SetBech32AddressPrefixes(config)
+	config.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
+	config.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
+	config.SetBech32PrefixForConsensusNode(app.Bech32PrefixConsAddr, app.Bech32PrefixConsPub)
 	config.Seal()
 
 	// TODO: setup keybase, viper object, etc. to be passed into
@@ -47,8 +46,8 @@ func main() {
 	// with the cdc
 
 	rootCmd := &cobra.Command{
-		Use:   "strcli",
-		Short: "Command line interface for interacting with strd",
+		Use:   version.ClientName,
+		Short: "Command line interface for interacting with " + version.ServerName,
 	}
 
 	// Add --chain-id to persistent flags and mark it required
@@ -66,14 +65,14 @@ func main() {
 		flags.LineBreak,
 		lcd.ServeCommand(cdc, registerRoutes),
 		flags.LineBreak,
-		keyCommands(),
+		keys.Commands(),
 		flags.LineBreak,
 		version.Cmd,
 		flags.NewCompletionCmd(rootCmd, true),
 	)
 
-	// Add flags and prefix all env exposed with STR
-	executor := cli.PrepareMainCmd(rootCmd, "STR", app.DefaultCLIHome)
+	// Add flags and prefix all env exposed with WM
+	executor := cli.PrepareMainCmd(rootCmd, "WM", app.DefaultCLIHome)
 
 	err := executor.Execute()
 	if err != nil {
@@ -120,6 +119,8 @@ func txCmd(cdc *amino.Codec) *cobra.Command {
 		authcmd.GetBroadcastCommand(cdc),
 		authcmd.GetEncodeCommand(cdc),
 		authcmd.GetDecodeCommand(cdc),
+		// TODO: I think it is safe to remove
+		// authcmd.GetDecodeTxCmd(cdc),
 		flags.LineBreak,
 	)
 
@@ -128,31 +129,34 @@ func txCmd(cdc *amino.Codec) *cobra.Command {
 
 	// remove auth and bank commands as they're mounted under the root tx command
 	var cmdsToRemove []*cobra.Command
+
 	for _, cmd := range txCmd.Commands() {
 		if cmd.Use == auth.ModuleName || cmd.Use == bank.ModuleName {
 			cmdsToRemove = append(cmdsToRemove, cmd)
 		}
 	}
+
 	txCmd.RemoveCommand(cmdsToRemove...)
 
 	return txCmd
 }
 
 // registerRoutes registers the routes from the different modules for the LCD.
+// NOTE: details on the routes added for each module are in the module documentation
+// NOTE: If making updates here you also need to update the test helper in client/lcd/test_helper.go
 func registerRoutes(rs *lcd.RestServer) {
 	client.RegisterRoutes(rs.CliCtx, rs.Mux)
 	authrest.RegisterTxRoutes(rs.CliCtx, rs.Mux)
 	app.ModuleBasics.RegisterRESTRoutes(rs.CliCtx, rs.Mux)
 }
 
-// initConfig reads in and sets options from a config file (if one exists)
 func initConfig(cmd *cobra.Command) error {
 	home, err := cmd.PersistentFlags().GetString(cli.HomeFlag)
 	if err != nil {
 		return err
 	}
-	cfgFile := path.Join(home, "config", "config.toml")
 
+	cfgFile := path.Join(home, "config", "config.toml")
 	if _, err := os.Stat(cfgFile); err == nil {
 		viper.SetConfigFile(cfgFile)
 

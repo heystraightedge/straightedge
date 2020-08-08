@@ -1,8 +1,10 @@
 #!/usr/bin/make -f
 
+PACKAGES_SIMTEST=$(shell go list ./... | grep '/simulation')
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 LEDGER_ENABLED ?= true
+SDK_PACK := $(shell go list -m github.com/cosmos/cosmos-sdk | sed  's/ /\@/g')
 
 export GO111MODULE = on
 
@@ -38,16 +40,16 @@ endif
 build_tags += $(BUILD_TAGS)
 build_tags := $(strip $(build_tags))
 
-whitespace :=
-whitespace += $(whitespace)
+empty :=
+space := $(empty) $(empty)
 comma := ,
-build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
+build_tags_comma_sep := $(subst $(space),$(comma),$(build_tags))
 
 # process linker flags
 
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=straightedge \
-		  -X github.com/cosmos/cosmos-sdk/version.ServerName=strd \
-		  -X github.com/cosmos/cosmos-sdk/version.ClientName=strcli \
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=wasm \
+		  -X github.com/cosmos/cosmos-sdk/version.ServerName=wasmd \
+		  -X github.com/cosmos/cosmos-sdk/version.ClientName=wasmcli \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
 		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
@@ -58,26 +60,81 @@ endif
 ldflags += $(LDFLAGS)
 ldflags := $(strip $(ldflags))
 
-BUILD_FLAGS := -tags "$(build_tags)" -ldflags '$(ldflags)'
+coral_ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=coral \
+				  -X github.com/cosmos/cosmos-sdk/version.ServerName=corald \
+				  -X github.com/cosmos/cosmos-sdk/version.ClientName=coral \
+				  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+				  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+				  -X github.com/CosmWasm/wasmd/app.CLIDir=.coral \
+				  -X github.com/CosmWasm/wasmd/app.NodeDir=.corald \
+				  -X github.com/CosmWasm/wasmd/app.Bech32Prefix=coral \
+				  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
+# we could consider enabling governance override?
+#				  -X github.com/CosmWasm/wasmd/app.EnableSpecificProposals=MigrateContract,UpdateAdmin,ClearAdmin \
 
+coral_ldflags += $(LDFLAGS)
+coral_ldflags := $(strip $(coral_ldflags))
 
-all: install
+flex_ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=gaiaflex \
+				  -X github.com/cosmos/cosmos-sdk/version.ServerName=gaiaflexd \
+				  -X github.com/cosmos/cosmos-sdk/version.ClientName=gaiaflex \
+				  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+				  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+				  -X github.com/CosmWasm/wasmd/app.ProposalsEnabled=true \
+				  -X github.com/CosmWasm/wasmd/app.CLIDir=.gaiaflex \
+				  -X github.com/CosmWasm/wasmd/app.NodeDir=.gaiaflexd \
+				  -X github.com/CosmWasm/wasmd/app.Bech32Prefix=cosmos \
+				  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
+
+flex_ldflags += $(LDFLAGS)
+flex_ldflags := $(strip $(flex_ldflags))
+
+BUILD_FLAGS := -tags $(build_tags_comma_sep) -ldflags '$(ldflags)' -trimpath
+CORAL_BUILD_FLAGS := -tags $(build_tags_comma_sep) -ldflags '$(coral_ldflags)' -trimpath
+FLEX_BUILD_FLAGS := -tags $(build_tags_comma_sep) -ldflags '$(flex_ldflags)' -trimpath
+
+all: install lint test
 
 build: go.sum
 ifeq ($(OS),Windows_NT)
-	go build -mod=readonly $(BUILD_FLAGS) -o build/strd.exe ./cmd/strd
-	go build -mod=readonly $(BUILD_FLAGS) -o build/strcli.exe ./cmd/strcli
+	# wasmd nodes not supported on windows, maybe the cli?
+	go build -mod=readonly $(BUILD_FLAGS) -o build/wasmcli.exe ./cmd/wasmcli
 else
-	go build -mod=readonly $(BUILD_FLAGS) -o build/strd ./cmd/strd
-	go build -mod=readonly $(BUILD_FLAGS) -o build/strcli ./cmd/strcli
+	go build -mod=readonly $(BUILD_FLAGS) -o build/wasmd ./cmd/wasmd
+	go build -mod=readonly $(BUILD_FLAGS) -o build/wasmcli ./cmd/wasmcli
+endif
+
+build-coral: go.sum
+ifeq ($(OS),Windows_NT)
+	# wasmd nodes not supported on windows, maybe the cli?
+	go build -mod=readonly $(CORAL_BUILD_FLAGS) -o build/coral.exe ./cmd/wasmcli
+else
+	go build -mod=readonly $(CORAL_BUILD_FLAGS) -o build/corald ./cmd/wasmd
+	go build -mod=readonly $(CORAL_BUILD_FLAGS) -o build/coral ./cmd/wasmcli
+endif
+
+build-gaiaflex: go.sum
+ifeq ($(OS),Windows_NT)
+	# wasmd nodes not supported on windows, maybe the cli?
+	go build -mod=readonly $(FLEX_BUILD_FLAGS) -o build/gaiaflex.exe ./cmd/wasmcli
+else
+	go build -mod=readonly $(FLEX_BUILD_FLAGS) -o build/gaiaflexd ./cmd/wasmd
+	go build -mod=readonly $(FLEX_BUILD_FLAGS) -o build/gaiaflex ./cmd/wasmcli
 endif
 
 build-linux: go.sum
 	LEDGER_ENABLED=false GOOS=linux GOARCH=amd64 $(MAKE) build
 
+build-contract-tests-hooks:
+ifeq ($(OS),Windows_NT)
+	go build -mod=readonly $(BUILD_FLAGS) -o build/contract_tests.exe ./cmd/contract_tests
+else
+	go build -mod=readonly $(BUILD_FLAGS) -o build/contract_tests ./cmd/contract_tests
+endif
+
 install: go.sum
-	go install -mod=readonly $(BUILD_FLAGS) ./cmd/strd
-	go install -mod=readonly $(BUILD_FLAGS) ./cmd/strcli
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/wasmd
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/wasmcli
 
 ########################################
 ### Tools & dependencies
@@ -85,50 +142,50 @@ install: go.sum
 go-mod-cache: go.sum
 	@echo "--> Download go modules to local cache"
 	@go mod download
-PHONY: go-mod-cache
 
 go.sum: go.mod
-	@echo "--> Ensuring dependencies have not been modified"
+	@echo "--> Ensure dependencies have not been modified"
 	@go mod verify
 
+draw-deps:
+	@# requires brew install graphviz or apt-get install graphviz
+	go get github.com/RobotsAndPencils/goviz
+	@goviz -i ./cmd/wasmd -d 2 | dot -Tpng -o dependency-graph.png
+
 clean:
-	rm -rf build/
+	rm -rf snapcraft-local.yaml build/
+
+distclean: clean
+	rm -rf vendor/
 
 ########################################
 ### Testing
 
-# TODO tidy up cli tests to use same -Enable flag as simulations, or the other way round
-# TODO -mod=readonly ?
-# build dependency needed for cli tests
-test-all: build
-	# basic app tests
-	@go test ./app -v
-	# cli tests
-	@go test ./cli_test -tags cli_test -v -p 4
-	# basic simulation (seed "2" happens to not unbond all validators before reaching 100 blocks)
-	@go test ./app -run TestFullAppSimulation        -Enabled -Commit -NumBlocks=100 -BlockSize=200 -Seed 2 -v -timeout 24h
-	# other sim tests
-	@go test ./app -run TestAppImportExport          -Enabled -Commit -NumBlocks=100 -BlockSize=200 -Seed 2 -v -timeout 24h
-	@go test ./app -run TestAppSimulationAfterImport -Enabled -Commit -NumBlocks=100 -BlockSize=200 -Seed 2 -v -timeout 24h
-	@# AppStateDeterminism does not use Seed flag
-	@go test ./app -run TestAppStateDeterminism      -Enabled -Commit -NumBlocks=100 -BlockSize=200         -v -timeout 24h
 
-test:
-	@go test ./...
+test: test-unit test-build
+test-all: check test-race test-cover
 
-# Kick start lots of sims on an AWS cluster.
-# This submits an AWS Batch job to run a lot of sims, each within a docker image. Results are uploaded to S3
-start-remote-sims:
-	# build the image used for running sims in, and tag it
-	docker build -f simulations/Dockerfile -t straightedge/straightedge-sim:master .
-	# push that image to the hub
-	docker push straightedge/straightedge-sim:master
-	# submit an array job on AWS Batch, using 1000 seeds, spot instances
-	aws batch submit-job \
-		-—job-name "master-$(VERSION)" \
-		-—job-queue “simulation-1-queue-spot" \
-		-—array-properties size=1000 \
-		-—job-definition straightedge-sim-master \
-		-—container-override environment=[{SIM_NAME=master-$(VERSION)}]
+test-unit:
+	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' ./...
 
-.PHONY: all build-linux install clean build test test-all start-remote-sims
+test-race:
+	@VERSION=$(VERSION) go test -mod=readonly -race -tags='ledger test_ledger_mock' ./...
+
+test-cover:
+	@go test -mod=readonly -timeout 30m -race -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock' ./...
+
+test-build: build
+	@go test -mod=readonly -p 4 `go list ./cli_test/...` -tags=cli_test -v
+
+format:
+	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" -not -path "./client/lcd/statik/statik.go" | xargs gofmt -w -s
+	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" -not -path "./client/lcd/statik/statik.go" | xargs misspell -w
+	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" -not -path "./client/lcd/statik/statik.go" | xargs goimports -w -local github.com/CosmWasm/wasmd
+
+benchmark:
+	@go test -mod=readonly -bench=. ./...
+
+
+.PHONY: all build-linux install install-debug \
+	go-mod-cache draw-deps clean build format \
+	test test-all test-build test-cover test-unit test-race
