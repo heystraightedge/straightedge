@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -88,15 +89,23 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer) abci.Application
 	if viper.GetBool(server.FlagInterBlockCache) {
 		cache = store.NewCommitKVStoreCacheManager()
 	}
+	pruningOpts, err := server.GetPruningOptionsFromFlags()
+	if err != nil {
+		panic(err)
+	}
+	skipUpgradeHeights := make(map[int64]bool)
+	for _, h := range viper.GetIntSlice(server.FlagUnsafeSkipUpgrades) {
+		skipUpgradeHeights[int64(h)] = true
+	}
 
-	return app.NewStraightedgeApp(
-		logger, db, traceStore, true, invCheckPeriod,
-		baseapp.SetPruning(store.NewPruningOptionsFromString(viper.GetString("pruning"))),
+	return app.NewStraightedgeApp(logger, db, traceStore, true, invCheckPeriod,
+		wasm.DisableAllProposals,
+		skipUpgradeHeights,
+		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(viper.GetString(server.FlagMinGasPrices)),
 		baseapp.SetHaltHeight(viper.GetUint64(server.FlagHaltHeight)),
 		baseapp.SetHaltTime(viper.GetUint64(server.FlagHaltTime)),
-		baseapp.SetInterBlockCache(cache),
-	)
+		baseapp.SetInterBlockCache(cache))
 }
 
 func exportAppStateAndTMValidators(
@@ -104,13 +113,13 @@ func exportAppStateAndTMValidators(
 ) (json.RawMessage, []tmtypes.GenesisValidator, error) {
 
 	if height != -1 {
-		tempApp := app.NewStraightedgeApp(logger, db, traceStore, false, uint(1))
+		tempApp := app.NewStraightedgeApp(logger, db, traceStore, false, uint(1), wasm.DisableAllProposals, nil)
 		err := tempApp.LoadHeight(height)
 		if err != nil {
 			return nil, nil, err
 		}
 		return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 	}
-	tempApp := app.NewStraightedgeApp(logger, db, traceStore, true, uint(1))
+	tempApp := app.NewStraightedgeApp(logger, db, traceStore, true, uint(1), wasm.DisableAllProposals, nil)
 	return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 }

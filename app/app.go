@@ -36,7 +36,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 
-	"github.com/cosmwasm/wasmd/x/wasm"
+	"github.com/CosmWasm/wasmd/x/wasm"
+	wasmclient "github.com/CosmWasm/wasmd/x/wasm/client"
+
 	"github.com/heystraightedge/straightedge/x/togglerouter"
 )
 
@@ -60,7 +62,7 @@ var (
 		staking.AppModuleBasic{},
 		mint.AppModuleBasic{},
 		distr.AppModuleBasic{},
-		gov.NewAppModuleBasic(paramsclient.ProposalHandler, distr.ProposalHandler, upgradeclient.ProposalHandler),
+		gov.NewAppModuleBasic(append(wasmclient.ProposalHandlers, paramsclient.ProposalHandler, distr.ProposalHandler, upgradeclient.ProposalHandler)...),
 		params.AppModuleBasic{},
 		crisis.AppModuleBasic{},
 		slashing.AppModuleBasic{},
@@ -117,6 +119,9 @@ type StraightedgeApp struct {
 	keys  map[string]*sdk.KVStoreKey
 	tKeys map[string]*sdk.TransientStoreKey
 
+	// subspaces
+	subspaces map[string]params.Subspace
+
 	// keepers
 	accountKeeper  auth.AccountKeeper
 	bankKeeper     bank.Keeper
@@ -129,7 +134,7 @@ type StraightedgeApp struct {
 	crisisKeeper   crisis.Keeper
 	paramsKeeper   params.Keeper
 	upgradeKeeper  upgrade.Keeper
-	evidenceKeeper evidence.Keeper
+	evidenceKeeper *evidence.Keeper
 	wasmKeeper     wasm.Keeper
 
 	// the module manager
@@ -148,10 +153,14 @@ type WasmWrapper struct {
 // NewStraightedgeApp returns a reference to an initialized StraightedgeApp.
 func NewStraightedgeApp(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool,
-	invCheckPeriod uint, baseAppOptions ...func(*bam.BaseApp),
+	invCheckPeriod uint, enabledProposals []wasm.ProposalType, skipUpgradeHeights map[int64]bool,
+	baseAppOptions ...func(*bam.BaseApp),
 ) *StraightedgeApp {
 
 	cdc := MakeCodec()
+
+	debug := viper.GetBool(cli.TraceFlag)
+	baseAppOptions = append(baseAppOptions, bam.SetTrace(debug))
 
 	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -171,40 +180,68 @@ func NewStraightedgeApp(
 		invCheckPeriod: invCheckPeriod,
 		keys:           keys,
 		tKeys:          tKeys,
+		subspaces:      make(map[string]params.Subspace),
 	}
 
 	// init params keeper and subspaces
 	app.paramsKeeper = params.NewKeeper(app.cdc, keys[params.StoreKey], tKeys[params.TStoreKey])
-	authSubspace := app.paramsKeeper.Subspace(auth.DefaultParamspace)
-	bankSubspace := app.paramsKeeper.Subspace(bank.DefaultParamspace)
-	stakingSubspace := app.paramsKeeper.Subspace(staking.DefaultParamspace)
-	mintSubspace := app.paramsKeeper.Subspace(mint.DefaultParamspace)
-	distrSubspace := app.paramsKeeper.Subspace(distr.DefaultParamspace)
-	slashingSubspace := app.paramsKeeper.Subspace(slashing.DefaultParamspace)
-	govSubspace := app.paramsKeeper.Subspace(gov.DefaultParamspace).WithKeyTable(gov.ParamKeyTable())
-	crisisSubspace := app.paramsKeeper.Subspace(crisis.DefaultParamspace)
-	evidenceSubspace := app.paramsKeeper.Subspace(evidence.DefaultParamspace)
+	app.subspaces[auth.ModuleName] = app.paramsKeeper.Subspace(auth.DefaultParamspace)
+	app.subspaces[bank.ModuleName] = app.paramsKeeper.Subspace(bank.DefaultParamspace)
+	app.subspaces[staking.ModuleName] = app.paramsKeeper.Subspace(staking.DefaultParamspace)
+	app.subspaces[mint.ModuleName] = app.paramsKeeper.Subspace(mint.DefaultParamspace)
+	app.subspaces[distr.ModuleName] = app.paramsKeeper.Subspace(distr.DefaultParamspace)
+	app.subspaces[slashing.ModuleName] = app.paramsKeeper.Subspace(slashing.DefaultParamspace)
+	app.subspaces[gov.ModuleName] = app.paramsKeeper.Subspace(gov.DefaultParamspace).WithKeyTable(gov.ParamKeyTable())
+	app.subspaces[crisis.ModuleName] = app.paramsKeeper.Subspace(crisis.DefaultParamspace)
+	app.subspaces[evidence.ModuleName] = app.paramsKeeper.Subspace(evidence.DefaultParamspace)
+	app.subspaces[wasm.ModuleName] = app.paramsKeeper.Subspace(wasm.DefaultParamspace)
 
 	// Create Router
-	routerSubspace := app.paramsKeeper.Subspace(togglerouter.DefaultParamspace).WithKeyTable(togglerouter.ParamKeyTable())
-	router := togglerouter.NewRouter(routerSubspace)
+	app.subspaces[togglerouter.ModuleName] = app.paramsKeeper.Subspace(togglerouter.DefaultParamspace).WithKeyTable(togglerouter.ParamKeyTable())
+	router := togglerouter.NewRouter(app.subspaces[togglerouter.ModuleName])
 	app.BaseApp.SetRouter(router)
 
 	// add keepers
-	app.accountKeeper = auth.NewAccountKeeper(app.cdc, keys[auth.StoreKey], authSubspace, auth.ProtoBaseAccount)
-	app.bankKeeper = bank.NewBaseKeeper(app.accountKeeper, bankSubspace, app.ModuleAccountAddrs())
-	app.supplyKeeper = supply.NewKeeper(app.cdc, keys[supply.StoreKey], app.accountKeeper, app.bankKeeper, maccPerms)
+	app.accountKeeper = auth.NewAccountKeeper(
+		app.cdc, keys[auth.StoreKey], app.subspaces[auth.ModuleName], auth.ProtoBaseAccount,
+	)
+	app.bankKeeper = bank.NewBaseKeeper(
+		app.accountKeeper, app.subspaces[bank.ModuleName], app.ModuleAccountAddrs(),
+	)
+	app.supplyKeeper = supply.NewKeeper(
+		app.cdc, keys[supply.StoreKey], app.accountKeeper, app.bankKeeper, maccPerms,
+	)
 	stakingKeeper := staking.NewKeeper(
-		app.cdc, keys[staking.StoreKey], app.supplyKeeper, stakingSubspace,
+		app.cdc, keys[staking.StoreKey], app.supplyKeeper, app.subspaces[staking.ModuleName],
 	)
-	app.mintKeeper = mint.NewKeeper(app.cdc, keys[mint.StoreKey], mintSubspace, &stakingKeeper, app.supplyKeeper, auth.FeeCollectorName)
-	app.distrKeeper = distr.NewKeeper(app.cdc, keys[distr.StoreKey], distrSubspace, &stakingKeeper,
-		app.supplyKeeper, auth.FeeCollectorName, app.ModuleAccountAddrs())
+	app.mintKeeper = mint.NewKeeper(
+		app.cdc, keys[mint.StoreKey], app.subspaces[mint.ModuleName], &stakingKeeper,
+		app.supplyKeeper, auth.FeeCollectorName,
+	)
+	app.distrKeeper = distr.NewKeeper(
+		app.cdc, keys[distr.StoreKey], app.subspaces[distr.ModuleName], &stakingKeeper,
+		app.supplyKeeper, auth.FeeCollectorName, app.ModuleAccountAddrs(),
+	)
 	app.slashingKeeper = slashing.NewKeeper(
-		app.cdc, keys[slashing.StoreKey], &stakingKeeper, slashingSubspace,
+		app.cdc, keys[slashing.StoreKey], &stakingKeeper, app.subspaces[slashing.ModuleName],
 	)
-	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
-	app.upgradeKeeper = upgrade.NewKeeper(map[int64]bool{}, keys[upgrade.StoreKey], app.cdc)
+	app.crisisKeeper = crisis.NewKeeper(
+		app.subspaces[crisis.ModuleName], invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName,
+	)
+	app.upgradeKeeper = upgrade.NewKeeper(skipUpgradeHeights, keys[upgrade.StoreKey], app.cdc)
+
+	// create evidence keeper with evidence router
+	evidenceKeeper := evidence.NewKeeper(
+		app.cdc, keys[evidence.StoreKey], app.subspaces[evidence.ModuleName], &stakingKeeper, app.slashingKeeper,
+	)
+	evidenceRouter := evidence.NewRouter()
+
+	// TODO: register evidence routes
+	evidenceKeeper.SetRouter(evidenceRouter)
+
+	app.evidenceKeeper = evidenceKeeper
+
+	// WASM
 
 	// just re-use the full router - do we want to limit this more?
 	var wasmRouter = bApp.Router()
@@ -219,19 +256,10 @@ func NewStraightedgeApp(
 	}
 	wasmConfig := wasmWrap.Wasm
 
-	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.accountKeeper, app.bankKeeper, wasmRouter, wasmDir, wasmConfig)
-
-	// create evidence keeper with evidence router
-	evidenceKeeper := evidence.NewKeeper(
-		app.cdc, keys[evidence.StoreKey], evidenceSubspace,
-		&stakingKeeper, app.slashingKeeper,
-	)
-	evidenceRouter := evidence.NewRouter()
-
-	// TODO: register evidence routes
-	evidenceKeeper.SetRouter(evidenceRouter)
-
-	app.evidenceKeeper = *evidenceKeeper
+	// The last arguments can contain custom message handlers, and custom query handlers,
+	// if we want to allow any custom callbacks
+	supportedFeatures := "staking"
+	app.wasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.subspaces[wasm.ModuleName], app.accountKeeper, app.bankKeeper, app.stakingKeeper, wasmRouter, wasmDir, wasmConfig, supportedFeatures, nil, nil)
 
 	// register the proposal types
 	govRouter := gov.NewRouter()
@@ -239,8 +267,14 @@ func NewStraightedgeApp(
 		AddRoute(params.RouterKey, params.NewParamChangeProposalHandler(app.paramsKeeper)).
 		AddRoute(distr.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.distrKeeper)).
 		AddRoute(upgrade.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.upgradeKeeper))
+
+	// The gov proposal types can be individually enabled
+	if len(enabledProposals) != 0 {
+		govRouter.AddRoute(wasm.RouterKey, wasm.NewWasmProposalHandler(app.wasmKeeper, enabledProposals))
+	}
+
 	app.govKeeper = gov.NewKeeper(
-		app.cdc, keys[gov.StoreKey], govSubspace,
+		app.cdc, keys[gov.StoreKey], app.subspaces[gov.ModuleName],
 		app.supplyKeeper, &stakingKeeper, govRouter,
 	)
 
@@ -263,26 +297,25 @@ func NewStraightedgeApp(
 		slashing.NewAppModule(app.slashingKeeper, app.accountKeeper, app.stakingKeeper),
 		distr.NewAppModule(app.distrKeeper, app.accountKeeper, app.supplyKeeper, app.stakingKeeper),
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
-		upgrade.NewAppModule(app.upgradeKeeper),
-		evidence.NewAppModule(app.evidenceKeeper),
+		evidence.NewAppModule(*app.evidenceKeeper),
 		togglerouter.NewAppModule(router),
 		wasm.NewAppModule(app.wasmKeeper),
+		upgrade.NewAppModule(app.upgradeKeeper),
+		evidence.NewAppModule(*app.evidenceKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 
-	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName)
+	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, staking.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName)
 	app.mm.SetOrderEndBlockers(crisis.ModuleName, gov.ModuleName, staking.ModuleName)
 
-	// NOTE: router genesis needs to be initialized first
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
 	app.mm.SetOrderInitGenesis(
-		togglerouter.ModuleName, distr.ModuleName, staking.ModuleName, auth.ModuleName,
-		bank.ModuleName, slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
-		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
-		wasm.ModuleName,
+		togglerouter.ModuleName, distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
+		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
+		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName, wasm.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)

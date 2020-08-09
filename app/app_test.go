@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	db "github.com/tendermint/tm-db"
@@ -15,11 +16,11 @@ import (
 
 func TestExport(t *testing.T) {
 	db := db.NewMemDB()
-	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0)
+	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.DisableAllProposals, nil)
 	setGenesis(app)
 
 	// Making a new app object with the db, so that initchain hasn't been called
-	newApp := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0)
+	newApp := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.DisableAllProposals, nil)
 	_, _, err := newApp.ExportAppStateAndValidators(false, []string{})
 	require.NoError(t, err, "ExportAppStateAndValidators should not have an error")
 }
@@ -27,7 +28,7 @@ func TestExport(t *testing.T) {
 // ensure that black listed addresses are properly set in bank keeper
 func TestBlackListedAddrs(t *testing.T) {
 	db := db.NewMemDB()
-	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0)
+	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.DisableAllProposals, nil)
 
 	for acc := range maccPerms {
 		require.True(t, app.bankKeeper.BlacklistedAddr(app.supplyKeeper.GetModuleAddress(acc)))
