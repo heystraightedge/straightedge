@@ -27,23 +27,9 @@ func consumeSigGas(
 	case multisig.PubKeyMultisigThreshold:
 		var multisignature multisig.Multisignature
 		codec.Cdc.MustUnmarshalBinaryBare(sig, &multisignature)
-		ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
+		ante.ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
 		return nil
 	default:
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidPubKey, "unrecognized public key type: %T", pubkey)
-	}
-}
-
-// Copied from sdk ante package as it wasn't exposed there
-func ConsumeMultisignatureVerificationGas(meter sdk.GasMeter,
-	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
-	params types.Params) {
-	size := sig.BitArray.Size()
-	sigIndex := 0
-	for i := 0; i < size; i++ {
-		if sig.BitArray.GetIndex(i) {
-			ante.DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
-			sigIndex++
-		}
 	}
 }
