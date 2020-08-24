@@ -99,7 +99,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer) abci.Application
 	}
 
 	return app.NewStraightedgeApp(logger, db, traceStore, true, invCheckPeriod,
-		wasm.DisableAllProposals,
+		wasm.EnableAllProposals,
 		skipUpgradeHeights,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(viper.GetString(server.FlagMinGasPrices)),
@@ -113,13 +113,13 @@ func exportAppStateAndTMValidators(
 ) (json.RawMessage, []tmtypes.GenesisValidator, error) {
 
 	if height != -1 {
-		tempApp := app.NewStraightedgeApp(logger, db, traceStore, false, uint(1), wasm.DisableAllProposals, nil)
+		tempApp := app.NewStraightedgeApp(logger, db, traceStore, false, uint(1), wasm.EnableAllProposals, nil)
 		err := tempApp.LoadHeight(height)
 		if err != nil {
 			return nil, nil, err
 		}
 		return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 	}
-	tempApp := app.NewStraightedgeApp(logger, db, traceStore, true, uint(1), wasm.DisableAllProposals, nil)
+	tempApp := app.NewStraightedgeApp(logger, db, traceStore, true, uint(1), wasm.EnableAllProposals, nil)
 	return tempApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 }
