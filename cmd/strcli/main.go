@@ -14,9 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
-	"github.com/cosmos/cosmos-sdk/client/lcd"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	cryptokeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -34,7 +32,6 @@ func main() {
 
 	// Instantiate the codec for the command line application
 	cdc := app.MakeCodec()
-	cryptokeys.CryptoCdc = cdc
 	clientkeys.KeysCdc = cdc
 
 	// Read in the configuration file for the sdk
@@ -64,7 +61,7 @@ func main() {
 		queryCmd(cdc),
 		txCmd(cdc),
 		flags.LineBreak,
-		lcd.ServeCommand(cdc, registerRoutes),
+		ServeCommand(cdc, registerRoutes),
 		flags.LineBreak,
 		keyCommands(),
 		flags.LineBreak,
@@ -139,7 +136,7 @@ func txCmd(cdc *amino.Codec) *cobra.Command {
 }
 
 // registerRoutes registers the routes from the different modules for the LCD.
-func registerRoutes(rs *lcd.RestServer) {
+func registerRoutes() {
 	client.RegisterRoutes(rs.CliCtx, rs.Mux)
 	authrest.RegisterTxRoutes(rs.CliCtx, rs.Mux)
 	app.ModuleBasics.RegisterRESTRoutes(rs.CliCtx, rs.Mux)

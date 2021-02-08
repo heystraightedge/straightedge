@@ -8,18 +8,16 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/tendermint/tendermint/crypto/sr25519"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	"github.com/tendermint/tendermint/libs/cli"
-
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	authexported "github.com/cosmos/cosmos-sdk/x/auth/exported"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/crypto/sr25519"
+	"github.com/tendermint/tendermint/libs/cli"
 )
 
 type GenBalances struct {
@@ -83,7 +81,7 @@ func ImportLockdropBalancesCmd(
 				coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 
 				// create concrete account type based on input parameters
-				var genAccount authexported.GenesisAccount
+				var genAccount authtypes.GenesisAccount
 				baseAccount := auth.NewBaseAccount(addr, coins.Sort(), nil, 0, 0)
 				genAccount = baseAccount
 

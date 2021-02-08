@@ -18,7 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/debug"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
-	cryptokeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -37,7 +36,6 @@ var invCheckPeriod uint
 
 func main() {
 	cdc := app.MakeCodec()
-	cryptokeys.CryptoCdc = cdc
 	clientkeys.KeysCdc = cdc
 
 	genutil.ModuleCdc = cdc
