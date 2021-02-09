@@ -3,6 +3,7 @@
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 LEDGER_ENABLED ?= true
+DOCKER := $(shell which docker)
 
 export GO111MODULE = on
 
@@ -74,6 +75,10 @@ endif
 
 build-linux: go.sum
 	LEDGER_ENABLED=false GOOS=linux GOARCH=amd64 $(MAKE) build
+
+proto-gen:
+	@echo "Generating Protobuf files"
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen sh ./scripts/protocgen.sh
 
 install: go.sum
 	go install -mod=readonly $(BUILD_FLAGS) ./cmd/strd
