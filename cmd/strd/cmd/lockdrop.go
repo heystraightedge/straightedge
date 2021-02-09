@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"encoding/hex"
@@ -8,40 +8,43 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
+	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/tendermint/tendermint/crypto/sr25519"
-	"github.com/tendermint/tendermint/libs/cli"
 )
 
 type GenBalances struct {
 	GenBalances [][]string `json:"balances"`
 }
 
-// AddGenesisAccountCmd returns add-genesis-account cobra Command.
-func ImportLockdropBalancesCmd(
-	ctx *server.Context, cdc *codec.Codec, defaultNodeHome, defaultClientHome string,
-) *cobra.Command {
+// ImportLockdropBalancesCmd returns add-genesis-account cobra Command.
+func ImportLockdropBalancesCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "import-lockdrop-balances [denom] [file]",
 		Short: "Import balances from lockdrop to genesis.json",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config := ctx.Config
-			config.SetRoot(viper.GetString(cli.HomeFlag))
+			clientCtx := client.GetClientContextFromCmd(cmd)
+			depCdc := clientCtx.JSONMarshaler
+			cdc := depCdc.(codec.Marshaler)
+			serverCtx := server.GetServerContextFromCmd(cmd)
+			config := serverCtx.Config
+			config.SetRoot(clientCtx.HomeDir)
 
 			denom := args[0]
 			filepath := args[1]
 
 			genFile := config.GenesisFile()
-			appState, genDoc, err := genutil.GenesisStateFromGenFile(cdc, genFile)
+			appState, genDoc, err := genutiltypes.GenesisStateFromGenFile(cdc, genFile)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal genesis state: %w", err)
 			}
@@ -116,8 +119,9 @@ func ImportLockdropBalancesCmd(
 		},
 	}
 
-	cmd.Flags().String(cli.HomeFlag, defaultNodeHome, "node's home directory")
-	cmd.Flags().String(flagClientHome, defaultClientHome, "client's home directory")
+	cmd.Flags().String(flags.FlagHome, defaultNodeHome, "The application home directory")
+	cmd.Flags().String(flags.FlagKeyringBackend, flags.DefaultKeyringBackend, "Select keyring's backend (os|file|kwallet|pass|test)")
+	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd
 }
