@@ -1,32 +1,32 @@
-package togglerouter
+package types
 
 import (
 	"fmt"
-	"regexp"
 
+	"github.com/cosmos/cosmos-sdk/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/params"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 const (
+	// ModuleName for router
 	ModuleName = "router"
 
 	// DefaultParamspace for params keeper
 	DefaultParamspace = ModuleName
 )
 
-var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
-
+// Router describes custom router
 type Router struct {
 	// The reference to the Paramstore to get and set gov specific params
-	paramSpace params.Subspace
+	paramSpace paramtypes.Subspace
 	routes     map[string]sdk.Handler
 }
 
-var _ sdk.Router = NewRouter(params.Subspace{})
+var _ sdk.Router = NewRouter(paramtypes.Subspace{})
 
 // NewRouter returns a reference to a new router.
-func NewRouter(paramSpace params.Subspace) *Router {
+func NewRouter(paramSpace paramtypes.Subspace) *Router {
 	return &Router{
 		paramSpace: paramSpace,
 		routes:     make(map[string]sdk.Handler),
@@ -35,15 +35,15 @@ func NewRouter(paramSpace params.Subspace) *Router {
 
 // AddRoute adds a route path to the router with a given handler. The route must
 // be alphanumeric.
-func (rtr *Router) AddRoute(path string, h sdk.Handler) sdk.Router {
-	if !isAlphaNumeric(path) {
+func (rtr *Router) AddRoute(r sdk.Route) sdk.Router {
+	if !types.IsAlphaNumeric(r.Path()) {
 		panic("route expressions can only contain alphanumeric characters")
 	}
-	if rtr.routes[path] != nil {
-		panic(fmt.Sprintf("route %s has already been initialized", path))
+	if rtr.routes[r.Path()] != nil {
+		panic(fmt.Sprintf("route %s has already been initialized", r.Path()))
 	}
 
-	rtr.routes[path] = h
+	rtr.routes[r.Path()] = r.Handler()
 	return rtr
 }
 
@@ -58,7 +58,7 @@ func (rtr *Router) Route(ctx sdk.Context, path string) sdk.Handler {
 	return rtr.routes[path]
 }
 
-// GetRouteEnabled returns whether a specific route is disabled from the global param store
+// GetRouteDisabled returns whether a specific route is disabled from the global param store
 func (rtr *Router) GetRouteDisabled(ctx sdk.Context, route string) bool {
 	var disabledRoutes []string
 	rtr.paramSpace.Get(ctx, ParamStoreKeyDisabledRoutes, &disabledRoutes)
@@ -70,25 +70,25 @@ func (rtr *Router) GetRouteDisabled(ctx sdk.Context, route string) bool {
 	return false
 }
 
-// SetRouteEnabled sets whether a specific route is disabled from the global param store
+// SetRouteDisabled sets whether a specific route is disabled from the global param store
 func (rtr *Router) SetRouteDisabled(ctx sdk.Context, route string, disabled bool) {
 	if disabled {
-		disabledRoutes := rtr.getDisabledRoutes(ctx)
+		disabledRoutes := rtr.GetDisabledRoutes(ctx)
 		for _, disabledRoute := range disabledRoutes {
 			if route == disabledRoute {
 				return
 			}
 		}
 		disabledRoutes = append(disabledRoutes, route)
-		rtr.setDisabledRoutes(ctx, disabledRoutes)
+		rtr.SetDisabledRoutes(ctx, disabledRoutes)
 	} else {
 		newDisabled := []string{}
-		disabledRoutes := rtr.getDisabledRoutes(ctx)
+		disabledRoutes := rtr.GetDisabledRoutes(ctx)
 		for _, disabledRoute := range disabledRoutes {
 			if route == disabledRoute {
 				newDisabled = append(newDisabled, route)
 			}
 		}
-		rtr.setDisabledRoutes(ctx, newDisabled)
+		rtr.SetDisabledRoutes(ctx, newDisabled)
 	}
 }

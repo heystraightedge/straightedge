@@ -1,17 +1,27 @@
-package togglerouter
+package types
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/codec/types"
 )
 
-// Register concrete types on codec codec
-func RegisterCodec(cdc *codec.Codec) {}
+// RegisterLegacyAminoCodec registers the necessary concrete types
+// on the provided LegacyAmino codec. These types are used for Amino JSON serialization.
+func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+}
 
-// module codec
-var ModuleCdc *codec.Codec
+// RegisterInterfaces registers the necessary interfaces
+func RegisterInterfaces(registry types.InterfaceRegistry) {
+}
+
+var (
+	amino = codec.NewLegacyAmino()
+
+	// ModuleCdc references the global module codec.
+	ModuleCdc = codec.NewAminoCodec(amino)
+)
 
 func init() {
-	ModuleCdc = codec.New()
-	RegisterCodec(ModuleCdc)
-	ModuleCdc.Seal()
+	RegisterLegacyAminoCodec(amino)
+	amino.Seal()
 }
