@@ -14,9 +14,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	authvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting"
+	authvesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
@@ -51,7 +51,7 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			if err != nil {
 				// attempt to lookup address from Keybase if no address was provided
-				kb, err := keyring.New(sdk.KeyringServiceName(), keyringBackend, clientCtx.HomeDir, inBuf)
+				kb, err := keyring.New(sdk.KeyringServiceName(), flags.FlagKeyringBackend, clientCtx.HomeDir, inBuf)
 				if err != nil {
 					return err
 				}
@@ -64,7 +64,7 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 				addr = info.GetAddress()
 			}
 
-			coins, err := sdk.ParseCoins(args[1])
+			coins, err := sdk.ParseCoinsNormalized(args[1])
 			if err != nil {
 				return fmt.Errorf("failed to parse coins: %w", err)
 			}
@@ -80,7 +80,8 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 			// create concrete account type based on input parameters
 			var genAccount authtypes.GenesisAccount
 
-			baseAccount := auth.NewBaseAccount(addr, coins.Sort(), nil, 0, 0)
+			balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}
+			baseAccount := authtypes.NewBaseAccount(addr, nil, 0, 0)
 			if !vestingAmt.IsZero() {
 				baseVestingAccount := authvesting.NewBaseVestingAccount(baseAccount, vestingAmt.Sort(), vestingEnd)
 
@@ -108,28 +109,39 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 			}
 
 			genFile := config.GenesisFile()
-			appState, genDoc, err := genutiltypes.GenesisStateFromGenFile(cdc, genFile)
+			appState, genDoc, err := genutiltypes.GenesisStateFromGenFile(genFile)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal genesis state: %w", err)
 			}
 
-			authGenState := auth.GetGenesisStateFromAppState(cdc, appState)
+			authGenState := authtypes.GetGenesisStateFromAppState(cdc, appState)
 
-			if authGenState.Accounts.Contains(addr) {
+			accs, err := authtypes.UnpackAccounts(authGenState.Accounts)
+			if err != nil {
+				return fmt.Errorf("failed to get accounts from any: %w", err)
+			}
+
+			if accs.Contains(addr) {
 				return fmt.Errorf("cannot add account at existing address %s", addr)
 			}
 
 			// Add the new account to the set of genesis accounts and sanitize the
 			// accounts afterwards.
-			authGenState.Accounts = append(authGenState.Accounts, genAccount)
-			authGenState.Accounts = auth.SanitizeGenesisAccounts(authGenState.Accounts)
+			accs = append(accs, genAccount)
+			accs = authtypes.SanitizeGenesisAccounts(accs)
 
-			authGenStateBz, err := cdc.MarshalJSON(authGenState)
+			genAccs, err := authtypes.PackAccounts(accs)
+			if err != nil {
+				return fmt.Errorf("failed to convert accounts into any's: %w", err)
+			}
+			authGenState.Accounts = genAccs
+
+			authGenStateBz, err := cdc.MarshalJSON(&authGenState)
 			if err != nil {
 				return fmt.Errorf("failed to marshal auth genesis state: %w", err)
 			}
 
-			appState[auth.ModuleName] = authGenStateBz
+			appState[authtypes.ModuleName] = authGenStateBz
 
 			appStateJSON, err := json.Marshal(appState)
 			if err != nil {
