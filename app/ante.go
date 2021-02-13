@@ -16,10 +16,10 @@ func consumeSigGas(
 	meter sdk.GasMeter, sig []byte, pubkey crypto.PubKey, params types.Params,
 ) error {
 	switch pubkey := pubkey.(type) {
-	case secp256k1.PubKeySecp256k1:
+	case secp256k1.PubKey:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
 		return nil
-	case sr25519.PubKeySr25519:
+	case sr25519.PubKey:
 		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: sr25519")
 		return nil
 	case multisig.PubKeyMultisigThreshold:

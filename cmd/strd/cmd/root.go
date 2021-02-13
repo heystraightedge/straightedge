@@ -6,14 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/heystraightedge/straightedge/app/params"
+	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/heystraightedge/straightedge/app/params"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/debug"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -51,8 +51,8 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 		WithHomeDir(straightedge.DefaultNodeHome)
 
 	rootCmd := &cobra.Command{
-		Use:               "strd",
-		Short:             "Straightedge Daemon (server)",
+		Use:   "strd",
+		Short: "Straightedge Daemon (server)",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 				return err
@@ -93,21 +93,19 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		genutilcli.GenTxCmd(straightedge.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, straightedge.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(straightedge.ModuleBasics),
 		AddGenesisAccountCmd(straightedge.DefaultNodeHome),
-		ImportLockdropBalancesCmd(ctx, cdc, app.DefaultNodeHome, app.DefaultCLIHome)
+		ImportLockdropBalancesCmd(straightedge.DefaultNodeHome),
 		tmcli.NewCompletionCmd(rootCmd, true),
 		debug.Cmd(),
 	)
 
-	server.AddCommands(rootCmd, straightedge.DefaultNodeHome, newApp, createStraightEdgeAppAndExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, straightedge.DefaultNodeHome, newApp, createStraightedgeAppAndExport, addModuleInitFlags)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		keys.Commands(straightedge.DefaultNodeHome),
 		keyCommands(),
-		version.Cmd,
 	)
 }
 
@@ -205,7 +203,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 	}
 
 	return straightedge.NewStraightedgeApp(
-		logger, db, traceStore, true, skipUpgradeHeights,
+		logger, db, traceStore, true, wasm.EnableAllProposals, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		straightedge.MakeEncodingConfig(), // Ideally, we would reuse the one created by NewRootCmd.
@@ -225,7 +223,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 	)
 }
 
-func createStraightEdgeAppAndExport(
+func createStraightedgeAppAndExport(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailWhiteList []string,
 	appOpts servertypes.AppOptions) (servertypes.ExportedApp, error) {
 
@@ -233,14 +231,20 @@ func createStraightEdgeAppAndExport(
 	encCfg.Marshaler = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	var app *straightedge.StraightedgeApp
 	if height != -1 {
-		app = straightedge.NewStraightedgeApp(logger, db, traceStore, false, map[int64]bool{}, "", uint(1), encCfg, appOpts)
+		app = straightedge.NewStraightedgeApp(logger, db, traceStore, false, wasm.EnableAllProposals, map[int64]bool{}, "", uint(1), encCfg, appOpts)
 
 		if err := app.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		app = straightedge.NewStraightedgeApp(logger, db, traceStore, true, map[int64]bool{}, "", uint(1), encCfg, appOpts)
+		app = straightedge.NewStraightedgeApp(logger, db, traceStore, true, wasm.EnableAllProposals, map[int64]bool{}, "", uint(1), encCfg, appOpts)
 	}
 
-	return app.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+	appState, validators, err := app.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+	return servertypes.ExportedApp{
+		AppState:        appState,
+		Validators:      validators,
+		Height:          0,
+		ConsensusParams: nil,
+	}, err
 }

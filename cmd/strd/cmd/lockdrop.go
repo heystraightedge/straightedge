@@ -13,8 +13,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/spf13/cobra"
@@ -26,7 +26,7 @@ type GenBalances struct {
 }
 
 // ImportLockdropBalancesCmd returns add-genesis-account cobra Command.
-func ImportLockdropBalancesCmd() *cobra.Command {
+func ImportLockdropBalancesCmd(defaultNodeHome string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "import-lockdrop-balances [denom] [file]",
@@ -44,12 +44,13 @@ func ImportLockdropBalancesCmd() *cobra.Command {
 			filepath := args[1]
 
 			genFile := config.GenesisFile()
-			appState, genDoc, err := genutiltypes.GenesisStateFromGenFile(cdc, genFile)
+			appState, genDoc, err := genutiltypes.GenesisStateFromGenFile(genFile)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal genesis state: %w", err)
 			}
 
-			authGenState := auth.GetGenesisStateFromAppState(cdc, appState)
+			authGenState := authtypes.GetGenesisStateFromAppState(cdc, appState)
+			bankGenState := banktypes.GetGenesisStateFromAppState(depCdc, appState)
 
 			jsonFile, err := os.Open(filepath)
 			if err != nil {
@@ -69,10 +70,7 @@ func ImportLockdropBalancesCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				var bzArr [32]byte
-				copy(bzArr[:], bz[:])
-
-				pubKey := sr25519.PubKeySr25519(bzArr)
+				pubKey := sr25519.PubKey(bz)
 
 				addr := sdk.AccAddress(pubKey.Address().Bytes())
 
@@ -85,31 +83,52 @@ func ImportLockdropBalancesCmd() *cobra.Command {
 
 				// create concrete account type based on input parameters
 				var genAccount authtypes.GenesisAccount
-				baseAccount := auth.NewBaseAccount(addr, coins.Sort(), nil, 0, 0)
+				balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}
+				baseAccount := authtypes.NewBaseAccount(addr, nil, 0, 0)
 				genAccount = baseAccount
 
 				if err := genAccount.Validate(); err != nil {
 					return fmt.Errorf("failed to validate new genesis account: %w", err)
 				}
 
-				if authGenState.Accounts.Contains(addr) {
-					return fmt.Errorf("cannot add account at existing address %s", addr)
+				accs, err := authtypes.UnpackAccounts(authGenState.Accounts)
+				if err != nil {
+					return fmt.Errorf("failed to get accounts from any: %w", err)
 				}
 
+				if accs.Contains(addr) {
+					return fmt.Errorf("cannot add account at existing address %s", addr)
+				}
 				// Add the new account to the set of genesis accounts and sanitize the
 				// accounts afterwards.
-				authGenState.Accounts = append(authGenState.Accounts, genAccount)
-				authGenState.Accounts = auth.SanitizeGenesisAccounts(authGenState.Accounts)
+				accs = append(accs, genAccount)
+				accs = authtypes.SanitizeGenesisAccounts(accs)
+				genAccs, err := authtypes.PackAccounts(accs)
+				if err != nil {
+					return fmt.Errorf("failed to convert accounts into any's: %w", err)
+				}
+				authGenState.Accounts = genAccs
+
+				bankGenState.Balances = append(bankGenState.Balances, balances)
+				bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 			}
 
-			authGenStateBz, err := cdc.MarshalJSON(authGenState)
+			authGenStateBz, err := cdc.MarshalJSON(&authGenState)
 			if err != nil {
 				return fmt.Errorf("failed to marshal auth genesis state: %w", err)
 			}
 
-			appState[auth.ModuleName] = authGenStateBz
+			appState[authtypes.ModuleName] = authGenStateBz
+			appState[banktypes.ModuleName] = authGenStateBz
 
-			appStateJSON, err := cdc.MarshalJSON(appState)
+			bankGenStateBz, err := cdc.MarshalJSON(bankGenState)
+			if err != nil {
+				return fmt.Errorf("failed to marshal bank genesis state: %w", err)
+			}
+
+			appState[banktypes.ModuleName] = bankGenStateBz
+
+			appStateJSON, err := json.Marshal(appState)
 			if err != nil {
 				return fmt.Errorf("failed to marshal application genesis state: %w", err)
 			}

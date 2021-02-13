@@ -193,7 +193,7 @@ type StraightedgeApp struct {
 // WasmWrapper allows us to use namespacing in the config file
 // This is only used for parsing in the app, x/wasm expects WasmConfig
 type WasmWrapper struct {
-	Wasm wasm.WasmConfig `mapstructure:"wasm"`
+	Wasm wasm.Config `mapstructure:"wasm"`
 }
 
 // NewStraightedgeApp returns a reference to an initialized StraightedgeApp.
@@ -327,7 +327,7 @@ func NewStraightedgeApp(
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
 	supportedFeatures := "staking"
-	app.WasmKeeper = wasm.NewKeeper(app.cdc, keys[wasm.StoreKey], app.GetSubspace(wasm.ModuleName), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, wasmRouter, wasmDir, wasmConfig, supportedFeatures, nil, nil)
+	app.WasmKeeper = wasm.NewKeeper(appCodec, keys[wasm.StoreKey], app.GetSubspace(wasm.ModuleName), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, wasmRouter, wasmDir, wasmConfig, supportedFeatures, nil, nil)
 
 	// The gov proposal types can be individually enabled
 	if len(enabledProposals) != 0 {
