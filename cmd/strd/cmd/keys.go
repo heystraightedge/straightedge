@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/heystraightedge/straightedge/crypto/keys/sr25519"
+	"github.com/heystraightedge/straightedge/crypto/hd"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -50,18 +50,18 @@ func keyCommands() *cobra.Command {
 func getKeybase(cmd *cobra.Command, dryrun bool, buf io.Reader) (keyring.Keyring, error) {
 	if dryrun {
 		return keyring.NewInMemory(
-			keyring.KeybaseOption(func(options *keyring.Options) {
-				options.SupportedAlgos = append(options.SupportedAlgos, sr25519.Sr25519)
-				options.SupportedAlgosLedger = append(options.SupportedAlgosLedger, sr25519.Sr25519)
+			keyring.Option(func(options *keyring.Options) {
+				options.SupportedAlgos = append(options.SupportedAlgos, hd.Sr25519)
+				options.SupportedAlgosLedger = append(options.SupportedAlgosLedger, hd.Sr25519)
 			}),
 		), nil
 	}
 
 	return keyring.New(
 		sdk.KeyringServiceName(), viper.GetString(flags.FlagKeyringBackend), viper.GetString(flags.FlagHome), buf,
-		keyring.KeybaseOption(func(options *keyring.Options) {
-			options.SupportedAlgos = append(options.SupportedAlgos, sr25519.Sr25519)
-			options.SupportedAlgosLedger = append(options.SupportedAlgosLedger, sr25519.Sr25519)
+		keyring.Option(func(options *keyring.Options) {
+			options.SupportedAlgos = append(options.SupportedAlgos, hd.Sr25519)
+			options.SupportedAlgosLedger = append(options.SupportedAlgosLedger, hd.Sr25519)
 		}),
 	)
 }

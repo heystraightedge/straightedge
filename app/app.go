@@ -79,6 +79,7 @@ import (
 	appparams "github.com/heystraightedge/straightedge/app/params"
 	_ "github.com/heystraightedge/straightedge/client/docs/statik"
 	"github.com/heystraightedge/straightedge/x/togglerouter"
+	toggleroutertypes "github.com/heystraightedge/straightedge/x/togglerouter/types"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
@@ -235,6 +236,11 @@ func NewStraightedgeApp(
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
+
+	// Create Router
+	router := toggleroutertypes.NewRouter(app.GetSubspace(toggleroutertypes.ModuleName))
+	app.BaseApp.SetRouter(router)
+
 	// set the BaseApp's parameter store
 	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramskeeper.ConsensusParamsKeyTable()))
 	// add capability keeper and ScopeToModule for ibc module
@@ -327,7 +333,7 @@ func NewStraightedgeApp(
 	// The last arguments can contain custom message handlers, and custom query handlers,
 	// if we want to allow any custom callbacks
 	supportedFeatures := "staking"
-	app.WasmKeeper = wasm.NewKeeper(appCodec, keys[wasm.StoreKey], app.GetSubspace(wasm.ModuleName), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, wasmRouter, wasmDir, wasmConfig, supportedFeatures, nil, nil)
+	app.WasmKeeper = wasm.NewKeeper(appCodec, keys[wasm.StoreKey], app.GetSubspace(wasm.ModuleName), app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.DistrKeeper, wasmRouter, wasmDir, wasmConfig, supportedFeatures, nil, nil)
 
 	// The gov proposal types can be individually enabled
 	if len(enabledProposals) != 0 {
@@ -357,7 +363,7 @@ func NewStraightedgeApp(
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
 		togglerouter.NewAppModule(router),
-		wasm.NewAppModule(app.WasmKeeper),
+		wasm.NewAppModule(&app.WasmKeeper, app.StakingKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -414,7 +420,7 @@ func NewStraightedgeApp(
 	// Use custom consumeSigGas
 	app.SetAnteHandler(
 		ante.NewAnteHandler(
-			app.AccountKeeper, app.BankKeeper, ante.DefaultSigVerificationGasConsumer,
+			app.AccountKeeper, app.BankKeeper, consumeSigGas,
 			encodingConfig.TxConfig.SignModeHandler(),
 		),
 	)
@@ -610,11 +616,8 @@ func initParamsKeeper(appCodec codec.BinaryMarshaler, legacyAmino *codec.LegacyA
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(wasm.ModuleName)
+	paramsKeeper.Subspace(toggleroutertypes.ModuleName)
+	paramsKeeper.Subspace(toggleroutertypes.DefaultParamspace).WithKeyTable(toggleroutertypes.ParamKeyTable())
 
-	// TODO:@paradev transition SDK 0.41.0 after others are done
-	// // Create Router
-	// app.subspaces[togglerouter.ModuleName] = app.paramsKeeper.Subspace(togglerouter.DefaultParamspace).WithKeyTable(togglerouter.ParamKeyTable())
-	// router := togglerouter.NewRouter(app.subspaces[togglerouter.ModuleName])
-	// app.BaseApp.SetRouter(router)
 	return paramsKeeper
 }

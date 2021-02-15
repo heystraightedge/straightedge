@@ -2,15 +2,14 @@ package sr25519
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/subtle"
 	"fmt"
-	"io"
 	"math/big"
 
 	"github.com/tendermint/tendermint/crypto"
-	"golang.org/x/crypto/ripemd160" // nolint: staticcheck // necessary for Bitcoin address format
+	tmsr25519 "github.com/tendermint/tendermint/crypto/sr25519"
 
+	// nolint: staticcheck // necessary for Bitcoin address format
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
@@ -31,12 +30,9 @@ func (privKey *PrivKey) Bytes() []byte {
 	return privKey.Key
 }
 
-// PubKey performs the point-scalar multiplication from the privKey on the
-// generator point to get the pubkey.
+// PubKey gets the corresponding public key from the private key.
 func (privKey *PrivKey) PubKey() cryptotypes.PubKey {
-	_, pubkeyObject := sr25519.PrivKeyFromBytes(sr25519.S256(), privKey.Key)
-	pk := pubkeyObject.SerializeCompressed()
-	return &PubKey{Key: pk}
+	return &PubKey{Key: tmsr25519.PrivKey(privKey.Key).PubKey().Bytes()}
 }
 
 // Equals - you probably don't need to use this.
@@ -76,63 +72,21 @@ func (privKey *PrivKey) UnmarshalAminoJSON(bz []byte) error {
 	return privKey.UnmarshalAmino(bz)
 }
 
-// GenPrivKey generates a new ECDSA private key on curve sr25519 private key.
-// It uses OS randomness to generate the private key.
+// GenPrivKey generates a new sr25519 private key.
+// It uses OS randomness in conjunction with the current global random seed
+// in tendermint/libs/common to generate the private key.
 func GenPrivKey() *PrivKey {
-	return &PrivKey{Key: genPrivKey(crypto.CReader())}
-}
-
-// genPrivKey generates a new sr25519 private key using the provided reader.
-func genPrivKey(rand io.Reader) []byte {
-	var privKeyBytes [PrivKeySize]byte
-	d := new(big.Int)
-	for {
-		privKeyBytes = [PrivKeySize]byte{}
-		_, err := io.ReadFull(rand, privKeyBytes[:])
-		if err != nil {
-			panic(err)
-		}
-
-		d.SetBytes(privKeyBytes[:])
-		// break if we found a valid point (i.e. > 0 and < N == curverOrder)
-		isValidFieldElement := 0 < d.Sign() && d.Cmp(sr25519.S256().N) < 0
-		if isValidFieldElement {
-			break
-		}
-	}
-
-	return privKeyBytes[:]
+	return &PrivKey{Key: tmsr25519.GenPrivKey().Bytes()}
 }
 
 var one = new(big.Int).SetInt64(1)
 
 // GenPrivKeyFromSecret hashes the secret with SHA2, and uses
 // that 32 byte output to create the private key.
-//
-// It makes sure the private key is a valid field element by setting:
-//
-// c = sha256(secret)
-// k = (c mod (n − 1)) + 1, where n = curve order.
-//
 // NOTE: secret should be the output of a KDF like bcrypt,
 // if it's derived from user input.
 func GenPrivKeyFromSecret(secret []byte) *PrivKey {
-	secHash := sha256.Sum256(secret)
-	// to guarantee that we have a valid field element, we use the approach of:
-	// "Suite B Implementer’s Guide to FIPS 186-3", A.2.1
-	// https://apps.nsa.gov/iaarchive/library/ia-guidance/ia-solutions-for-classified/algorithm-guidance/suite-b-implementers-guide-to-fips-186-3-ecdsa.cfm
-	// see also https://github.com/golang/go/blob/0380c9ad38843d523d9c9804fe300cb7edd7cd3c/src/crypto/ecdsa/ecdsa.go#L89-L101
-	fe := new(big.Int).SetBytes(secHash[:])
-	n := new(big.Int).Sub(sr25519.S256().N, one)
-	fe.Mod(fe, n)
-	fe.Add(fe, one)
-
-	feB := fe.Bytes()
-	privKey32 := make([]byte, PrivKeySize)
-	// copy feB over to fixed 32 byte privKey32 and pad (if necessary)
-	copy(privKey32[32-len(feB):32], feB)
-
-	return &PrivKey{Key: privKey32}
+	return &PrivKey{Key: tmsr25519.GenPrivKeyFromSecret(secret).Bytes()}
 }
 
 //-------------------------------------
@@ -146,17 +100,7 @@ const PubKeySize = 33
 
 // Address returns a Bitcoin style addresses: RIPEMD160(SHA256(pubkey))
 func (pubKey *PubKey) Address() crypto.Address {
-	if len(pubKey.Key) != PubKeySize {
-		panic("length of pubkey is incorrect")
-	}
-
-	hasherSHA256 := sha256.New()
-	hasherSHA256.Write(pubKey.Key) // does not error
-	sha := hasherSHA256.Sum(nil)
-
-	hasherRIPEMD160 := ripemd160.New()
-	hasherRIPEMD160.Write(sha) // does not error
-	return crypto.Address(hasherRIPEMD160.Sum(nil))
+	return tmsr25519.PubKey(pubKey.Key).Address()
 }
 
 // Bytes returns the pubkey byte format.

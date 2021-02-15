@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/heystraightedge/straightedge/app/params"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/debug"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/snapshots"
@@ -224,7 +224,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 }
 
 func createStraightedgeAppAndExport(
-	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailWhiteList []string,
+	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailAllowedAddrs []string,
 	appOpts servertypes.AppOptions) (servertypes.ExportedApp, error) {
 
 	encCfg := straightedge.MakeEncodingConfig() // Ideally, we would reuse the one created by NewRootCmd.
@@ -240,11 +240,5 @@ func createStraightedgeAppAndExport(
 		app = straightedge.NewStraightedgeApp(logger, db, traceStore, true, wasm.EnableAllProposals, map[int64]bool{}, "", uint(1), encCfg, appOpts)
 	}
 
-	appState, validators, err := app.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
-	return servertypes.ExportedApp{
-		AppState:        appState,
-		Validators:      validators,
-		Height:          0,
-		ConsensusParams: nil,
-	}, err
+	return app.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
 }

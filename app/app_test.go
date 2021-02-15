@@ -36,7 +36,7 @@ func TestBlackListedAddrs(t *testing.T) {
 }
 
 func setGenesis(app *StraightedgeApp) error {
-	genesisState := NewDefaultGenesisState()
+	genesisState := NewDefaultGenesisState(app.appCodec)
 
 	stateBytes, err := codec.MarshalJSONIndent(app.cdc, genesisState)
 	if err != nil {

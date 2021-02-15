@@ -4,53 +4,65 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/cosmos/cosmos-sdk/codec"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-// export the state of the app for a genesis file
-func (app *StraightedgeApp) ExportAppStateAndValidators(forZeroHeight bool, jailWhiteList []string) (
-	appState json.RawMessage, validators []tmtypes.GenesisValidator, err error) {
-
+// ExportAppStateAndValidators exports the state of the application for a genesis
+// file.
+func (app *StraightedgeApp) ExportAppStateAndValidators(
+	forZeroHeight bool, jailAllowedAddrs []string,
+) (servertypes.ExportedApp, error) {
 	// as if they could withdraw from the start of the next block
-	ctx := app.NewContext(true, abci.Header{Height: app.LastBlockHeight()})
+	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 
+	// We export at last height + 1, because that's the height at which
+	// Tendermint will start InitChain.
+	height := app.LastBlockHeight() + 1
 	if forZeroHeight {
-		app.prepForZeroHeightGenesis(ctx, jailWhiteList)
+		height = 0
+		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
 	}
 
-	genState := app.mm.ExportGenesis(ctx, cdc)
-
-	appState, err = codec.MarshalJSONIndent(app.cdc, genState)
+	genState := app.mm.ExportGenesis(ctx, app.appCodec)
+	appState, err := json.MarshalIndent(genState, "", "  ")
 	if err != nil {
-		return nil, nil, err
+		return servertypes.ExportedApp{}, err
 	}
-	validators = staking.WriteValidators(ctx, app.StakingKeeper)
-	return appState, validators, nil
+
+	validators, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	return servertypes.ExportedApp{
+		AppState:        appState,
+		Validators:      validators,
+		Height:          height,
+		ConsensusParams: app.BaseApp.GetConsensusParams(ctx),
+	}, err
 }
 
 // prepare for fresh start at zero height
-func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteList []string) {
-	applyWhiteList := false
+// NOTE zero height genesis is a temporary feature which will be deprecated
+//      in favour of export at a block height
+func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
+	applyAllowedAddrs := false
 
-	//Check if there is a whitelist
-	if len(jailWhiteList) > 0 {
-		applyWhiteList = true
+	// check if there is a allowed address list
+	if len(jailAllowedAddrs) > 0 {
+		applyAllowedAddrs = true
 	}
 
-	whiteListMap := make(map[string]bool)
+	allowedAddrsMap := make(map[string]bool)
 
-	for _, addr := range jailWhiteList {
+	for _, addr := range jailAllowedAddrs {
 		_, err := sdk.ValAddressFromBech32(addr)
 		if err != nil {
 			log.Fatal(err)
 		}
-		whiteListMap[addr] = true
+		allowedAddrsMap[addr] = true
 	}
 
 	/* Just to be safe, assert the invariants on current state. */
@@ -66,13 +78,13 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 
 	// withdraw all delegator rewards
 	dels := app.StakingKeeper.GetAllDelegations(ctx)
-	for _, del := range dels {
-		valAddr, err := sdk.ValAddressFromBech32(del.ValidatorAddress)
+	for _, delegation := range dels {
+		valAddr, err := sdk.ValAddressFromBech32(delegation.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
 
-		delAddr, err := sdk.AccAddressFromBech32(del.DelegatorAddress)
+		delAddr, err := sdk.AccAddressFromBech32(delegation.DelegatorAddress)
 		if err != nil {
 			panic(err)
 		}
@@ -91,9 +103,8 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 
 	// reinitialize all validators
 	app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) (stop bool) {
-
 		// donate any unwithdrawn outstanding reward fraction tokens to the community pool
-		scraps := app.DistrKeeper.GetValidatorOutstandingRewards(ctx, val.GetOperator())
+		scraps := app.DistrKeeper.GetValidatorOutstandingRewardsCoins(ctx, val.GetOperator())
 		feePool := app.DistrKeeper.GetFeePool(ctx)
 		feePool.CommunityPool = feePool.CommunityPool.Add(scraps...)
 		app.DistrKeeper.SetFeePool(ctx, feePool)
@@ -108,7 +119,6 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 		if err != nil {
 			panic(err)
 		}
-
 		delAddr, err := sdk.AccAddressFromBech32(del.DelegatorAddress)
 		if err != nil {
 			panic(err)
@@ -146,7 +156,6 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 	iter := sdk.KVStoreReversePrefixIterator(store, stakingtypes.ValidatorsKey)
 	counter := int16(0)
 
-	var valConsAddrs []sdk.ConsAddress
 	for ; iter.Valid(); iter.Next() {
 		addr := sdk.ValAddress(iter.Key()[1:])
 		validator, found := app.StakingKeeper.GetValidator(ctx, addr)
@@ -155,8 +164,7 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 		}
 
 		validator.UnbondingHeight = 0
-		valConsAddrs = append(valConsAddrs, validator.ConsAddress())
-		if applyWhiteList && !whiteListMap[addr.String()] {
+		if applyAllowedAddrs && !allowedAddrsMap[addr.String()] {
 			validator.Jailed = true
 		}
 
@@ -166,7 +174,10 @@ func (app *StraightedgeApp) prepForZeroHeightGenesis(ctx sdk.Context, jailWhiteL
 
 	iter.Close()
 
-	app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx)
+	_, err := app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	/* Handle slashing state. */
 
