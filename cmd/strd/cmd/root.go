@@ -9,6 +9,7 @@ import (
 	"github.com/CosmWasm/wasmd/x/wasm"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/heystraightedge/straightedge/app"
 	"github.com/heystraightedge/straightedge/app/params"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -105,7 +106,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		keyCommands(),
+		keyCommands(app.DefaultNodeHome),
 	)
 }
 

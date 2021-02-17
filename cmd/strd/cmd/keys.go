@@ -9,9 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/heystraightedge/straightedge/crypto/hd"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/libs/cli"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 
 // keyCommands registers a sub-tree of commands to interact with
 // local private key storage.
-func keyCommands() *cobra.Command {
+func keyCommands(defaultNodeHome string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "keys",
 		Short: "Add or view local private keys",
@@ -44,6 +44,11 @@ func keyCommands() *cobra.Command {
 		keys.MigrateCommand(),
 		flags.LineBreak,
 	)
+
+	cmd.PersistentFlags().String(flags.FlagHome, defaultNodeHome, "The application home directory")
+	cmd.PersistentFlags().String(flags.FlagKeyringDir, "", "The client Keyring directory; if omitted, the default 'home' directory will be used")
+	cmd.PersistentFlags().String(flags.FlagKeyringBackend, flags.DefaultKeyringBackend, "Select keyring's backend (os|file|test)")
+	cmd.PersistentFlags().String(cli.OutputFlag, "text", "Output format (text|json)")
 	return cmd
 }
 
