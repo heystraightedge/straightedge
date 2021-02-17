@@ -10,28 +10,32 @@ import (
 	db "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/simapp"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 func TestExport(t *testing.T) {
 	db := db.NewMemDB()
-	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.EnableAllProposals, nil)
+	// logger, db, traceStore, true, wasm.EnableAllProposals, skipUpgradeHeights,
+	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, wasm.EnableAllProposals, nil, "", 0, MakeEncodingConfig(), simapp.EmptyAppOptions{})
+
 	setGenesis(app)
 
 	// Making a new app object with the db, so that initchain hasn't been called
-	newApp := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.EnableAllProposals, nil)
-	_, _, err := newApp.ExportAppStateAndValidators(false, []string{})
+	newApp := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, wasm.EnableAllProposals, nil, "", 0, MakeEncodingConfig(), simapp.EmptyAppOptions{})
+	_, err := newApp.ExportAppStateAndValidators(false, []string{})
 	require.NoError(t, err, "ExportAppStateAndValidators should not have an error")
 }
 
 // ensure that black listed addresses are properly set in bank keeper
-func TestBlackListedAddrs(t *testing.T) {
+func TestBlockedAddrs(t *testing.T) {
 	db := db.NewMemDB()
-	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, 0, wasm.EnableAllProposals, nil)
+	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, wasm.EnableAllProposals, nil, "", 0, MakeEncodingConfig(), simapp.EmptyAppOptions{})
 
 	for acc := range maccPerms {
-		require.True(t, app.BankKeeper.BlacklistedAddr(app.supplyKeeper.GetModuleAddress(acc)))
+		require.Equal(t, !allowedReceivingModAcc[acc], app.BankKeeper.BlockedAddr(app.AccountKeeper.GetModuleAddress(acc)),
+			"ensure that blocked addresses are properly set in bank keeper")
 	}
 }
 

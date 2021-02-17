@@ -11,9 +11,6 @@ import (
 const (
 	// ModuleName for router
 	ModuleName = "router"
-
-	// DefaultParamspace for params keeper
-	DefaultParamspace = ModuleName
 )
 
 // Router describes custom router
