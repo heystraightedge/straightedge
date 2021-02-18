@@ -26,6 +26,7 @@ import (
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingcli "github.com/cosmos/cosmos-sdk/x/auth/vesting/client/cli"
+	bankcmd "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
@@ -148,6 +149,7 @@ func txCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(
+		bankcmd.NewSendTxCmd(),
 		authcmd.GetSignCommand(),
 		authcmd.GetSignBatchCommand(),
 		authcmd.GetMultiSignCommand(),
@@ -159,16 +161,6 @@ func txCommand() *cobra.Command {
 		flags.LineBreak,
 		vestingcli.GetTxCmd(),
 	)
-
-	// TODO:@paradev remove this if not needed
-	// 	txCmd.AddCommand(
-	// 		bankcmd.SendTxCmd(cdc),
-	// 		authcmd.GetSignCommand(cdc),
-	// 		authcmd.GetMultiSignCommand(cdc),
-	// 		authcmd.GetBroadcastCommand(cdc),
-	// 		authcmd.GetEncodeCommand(cdc),
-	// 		authcmd.GetDecodeCommand(cdc),
-	// 	)
 
 	straightedge.ModuleBasics.AddTxCommands(cmd)
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
