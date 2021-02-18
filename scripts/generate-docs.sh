@@ -15,6 +15,7 @@ for dir in $proto_dirs; do
     -I "proto" \
     -I "$cosmos_sdk_dir/third_party/proto" \
     -I "$cosmos_sdk_dir/proto" \
+    -I "$cosmos_sdk_dir/testutil/testdata" \
     "$query_file" \
     --swagger_out ./tmp-swagger-gen \
     --swagger_opt logtostderr=true \
