@@ -17,7 +17,6 @@ import (
 
 func TestExport(t *testing.T) {
 	db := db.NewMemDB()
-	// logger, db, traceStore, true, wasm.EnableAllProposals, skipUpgradeHeights,
 	app := NewStraightedgeApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, wasm.EnableAllProposals, nil, "", 0, MakeEncodingConfig(), simapp.EmptyAppOptions{})
 
 	setGenesis(app)
