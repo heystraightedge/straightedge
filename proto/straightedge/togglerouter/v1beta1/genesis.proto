@@ -1,0 +1,12 @@
+syntax = "proto3";
+package straightedge.togglerouter.v1beta1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/heystraightedge/straightedge/x/togglerouter/types";
+
+// GenesisState defines the togglerouter module's genesis state.
+message GenesisState {
+  // disabled_routes defines all the disabled msg routes.
+  repeated string disabled_routes = 1;
+}

@@ -1,33 +1,40 @@
 package app
 
 import (
-	"github.com/cosmos/cosmos-sdk/codec"
+	"fmt"
+
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	multisigtypes "github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
-
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/multisig"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-	"github.com/tendermint/tendermint/crypto/sr25519"
 )
 
 func consumeSigGas(
-	meter sdk.GasMeter, sig []byte, pubkey crypto.PubKey, params types.Params,
+	meter sdk.GasMeter, sig signing.SignatureV2, params types.Params,
 ) error {
+	pubkey := sig.PubKey
 	switch pubkey := pubkey.(type) {
-	case secp256k1.PubKeySecp256k1:
+	case *ed25519.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
+		return nil
+
+	case *secp256k1.PubKey:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
 		return nil
-	case sr25519.PubKeySr25519:
-		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: sr25519")
-		return nil
-	case multisig.PubKeyMultisigThreshold:
-		var multisignature multisig.Multisignature
-		codec.Cdc.MustUnmarshalBinaryBare(sig, &multisignature)
-		ante.ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
+
+	case multisigtypes.PubKey:
+		multisignature, ok := sig.Data.(*signing.MultiSignatureData)
+		if !ok {
+			return fmt.Errorf("expected %T, got, %T", &signing.MultiSignatureData{}, sig.Data)
+		}
+		err := ante.ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params, sig.Sequence)
+		if err != nil {
+			return err
+		}
 		return nil
 	default:
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidPubKey, "unrecognized public key type: %T", pubkey)

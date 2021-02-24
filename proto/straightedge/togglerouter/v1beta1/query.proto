@@ -1,0 +1,19 @@
+syntax = "proto3";
+package straightedge.togglerouter.v1beta1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/heystraightedge/straightedge/x/togglerouter/types";
+
+service Query {
+  rpc DisabledRoutes(QueryDisabledRoutesRequest) returns (QueryDisabledRoutesResponse) {
+    option (google.api.http).get = "/straightedge/togglerouter/v1beta1";
+  }
+}
+
+message QueryDisabledRoutesRequest {
+}
+message QueryDisabledRoutesResponse {
+  repeated string routes = 1;
+}
